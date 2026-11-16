@@ -15,5 +15,16 @@ javac -nowarn -source 17 -target 17 -cp "$JAR:$LIBS" -d build/classes $(find src
 $BT/d8 --lib $JAR --min-api 26 --output build/dex $(find build/classes -name '*.class') libs/shizuku-api.jar libs/shizuku-provider.jar libs/shizuku-aidl.jar
 (cd build/dex && zip -q ../base.apk classes.dex)
 $BT/zipalign -f 4 build/base.apk build/aligned.apk
-$BT/apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --key-pass pass:android --out build/SkylineWeather.apk build/aligned.apk
+# Sign with the release key when it is present, otherwise fall back to the debug key so the
+# project still builds for anyone who only has the debug keystore.
+KS="${SKYLINE_KS:-$HOME/keystores/skyline-release.jks}"
+KSFILE="${SKYLINE_KS_PASS_FILE:-$HOME/keystores/skyline-release.txt}"
+if [ -f "$KS" ] && [ -f "$KSFILE" ]; then
+  KSPASS="$(sed -n 's/^storepass: //p' "$KSFILE")"
+  $BT/apksigner sign --ks "$KS" --ks-pass "pass:$KSPASS" --key-pass "pass:$KSPASS" --out build/SkylineWeather.apk build/aligned.apk
+  echo "signed with release key: $KS"
+else
+  $BT/apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --key-pass pass:android --out build/SkylineWeather.apk build/aligned.apk
+  echo "signed with debug key"
+fi
 if [ -n "$1" ]; then adb -s "$1" install -r --no-incremental build/SkylineWeather.apk | tail -1; fi

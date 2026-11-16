@@ -29,9 +29,12 @@ you to allow installing from unknown sources, because this is not on the Play St
 
 Requires Android 8.0 (API 26) or newer; built and tested against Android 17 / API 37.
 
-**The APK is signed with a debug key.** That is fine for sideloading, but it means anyone with the
-same public debug keystore could sign an update that Android would accept. Do not treat this build
-as production-signed software.
+**Releases are signed with a private release key** (`CN=Skyline Weather`), which is not in this
+repository. That is what Android uses to allow in-place updates, so keep your copy of the keystore —
+losing it means future versions cannot be installed over the old one without an uninstall.
+
+Reports before 8.60 were debug-signed; installing 8.60 over one of those requires an uninstall
+first (different signature), which removes the widget from the home screen.
 
 ## Screenshots
 
@@ -61,6 +64,10 @@ The Shizuku SDK jars are vendored in `android/libs/` (`shizuku-api`, `shizuku-pr
 provider alone crashes on `IShizukuApplication` without the `aidl` jar.
 
 Adjust the paths at the top of the script for your machine.
+
+The script signs with `~/keystores/skyline-release.jks` when that file exists (override with
+`SKYLINE_KS` and `SKYLINE_KS_PASS_FILE`), and otherwise falls back to the debug keystore, so a fresh
+clone still builds.
 
 ## Permissions
 
