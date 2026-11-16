@@ -102,6 +102,8 @@ public class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         followLocation();
+        // optional: lets the app revive itself through Shizuku, and makes it appear in Shizuku's list
+        ShizukuWatchdog.request(this);
     }
 
     @Override protected void onCreate(Bundle b) {

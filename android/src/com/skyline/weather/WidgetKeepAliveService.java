@@ -108,6 +108,7 @@ public class WidgetKeepAliveService extends Service {
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         if (!hasWidgets(this)) { stopSelf(); return START_NOT_STICKY; }
         try { WeatherRefreshJob.schedule(this); } catch (Throwable ignored) { }
+        try { ShizukuWatchdog.startLoop(); } catch (Throwable ignored) { }
         handler.removeCallbacks(tick);
         handler.post(tick);          // refresh now, then every 15 minutes while alive
         return START_STICKY;

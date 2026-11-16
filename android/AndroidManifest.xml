@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.skyline.weather" android:versionCode="138" android:versionName="8.55">
+    package="com.skyline.weather" android:versionCode="142" android:versionName="8.59">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="36"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="moe.shizuku.manager.permission.API_V23"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
@@ -24,6 +25,11 @@
         </activity>
         <activity android:name=".ReaderActivity" android:exported="false" android:theme="@style/ReaderTheme" android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize"/>
         <service android:name=".WeatherRefreshJob" android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true"/>
+        <provider android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="com.skyline.weather.shizuku"
+            android:multiprocess="false" android:enabled="true" android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL"/>
+        <meta-data android:name="moe.shizuku.client.V3_SUPPORT" android:value="true"/>
         <receiver android:name=".WatchdogWake" android:exported="true">
             <intent-filter>
                 <action android:name="com.skyline.weather.WAKE"/>

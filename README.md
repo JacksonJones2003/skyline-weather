@@ -15,6 +15,9 @@ Data comes from [Open-Meteo](https://open-meteo.com/) — no API key, no account
   network comes back, and when you open the app.
 - Exact wakeup alarms during 07:00–23:00; overnight it falls back to non-wakeup alarms so it does
   not rouse the phone (the same trade vivo's own weather widget makes).
+- Optional **Shizuku** integration: the app appears in Shizuku's app list and, once allowed, starts a
+  watchdog with shell identity that revives the widget process within about a minute of it being
+  killed. Without Shizuku everything still works, just with the scheduler's ~15 minute recovery.
 - A foreground service keeps the refresh chain alive on devices that freeze background apps. It
   shows one silent, minimum-importance notification — that is required by Android for a foreground
   service, and it is not optional.
@@ -53,6 +56,10 @@ cd android
 - JDK 17 at `/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home`
 - A debug keystore at `~/.android/debug.keystore`
 
+The Shizuku SDK jars are vendored in `android/libs/` (`shizuku-api`, `shizuku-provider`,
+`shizuku-aidl`, all 13.1.5), so the build needs no network access. All three are required — the
+provider alone crashes on `IShizukuApplication` without the `aidl` jar.
+
 Adjust the paths at the top of the script for your machine.
 
 ## Permissions
@@ -66,6 +73,23 @@ Adjust the paths at the top of the script for your machine.
 | `POST_NOTIFICATIONS` | its notification |
 | `SCHEDULE_EXACT_ALARM` | the 15-minute wakeup alarm |
 | `VIBRATE` | in-app feedback |
+
+## Shizuku (optional)
+
+Open the app once; Shizuku shows its permission prompt (it may already be granted if you allowed it
+earlier), and Skyline then appears in Shizuku's *Application management* list. Allowing it starts a
+watchdog loop running as a child of the Shizuku server:
+
+```sh
+while true; do
+  pidof com.skyline.weather >/dev/null 2>&1 ||
+    cmd jobscheduler run -f com.skyline.weather 8127 >/dev/null 2>&1
+  sleep 45
+done
+```
+
+A pidfile at `/data/local/tmp/skyline.wd.pid` keeps it single-instance. Revoking the permission in
+Shizuku, or never granting it, leaves the JobScheduler chain intact.
 
 ## Known limitations
 
