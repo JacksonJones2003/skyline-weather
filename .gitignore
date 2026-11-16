@@ -1,0 +1,11 @@
+# build output
+android/build/
+*.apk
+
+# local tooling
+.gradle/
+local.properties
+.DS_Store
+
+# original full-resolution captures (docs/ holds compressed copies)
+screenshots/

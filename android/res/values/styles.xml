@@ -1,0 +1,20 @@
+<resources>
+    <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/sky</item>
+        <item name="android:colorAccent">#FFFFFF</item>
+    </style>
+    <color name="sky">#2F74C8</color>
+    <color name="icon_bg">#2F74C8</color>
+    <style name="WText">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">#FFFFFFFF</item>
+        <item name="android:shadowColor">#59002050</item>
+        <item name="android:shadowDy">1</item>
+        <item name="android:shadowRadius">7</item>
+    </style>
+    <style name="ReaderTheme" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>
