@@ -34,7 +34,8 @@ button:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2
 .scene{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
 .glow{position:absolute;left:38%;top:-6vh;width:120vw;height:120vw;max-width:900px;max-height:900px;transform:translate(-50%,-30%);
   background:radial-gradient(circle,rgba(255,252,235,1) 0 3%,rgba(255,246,214,.75) 6%,rgba(255,240,200,.25) 16%,rgba(255,255,255,0) 40%);transition:opacity 1s}
-.halo{position:absolute;left:38%;top:-6vh;width:62vw;height:62vw;max-width:460px;max-height:460px;transform:translate(-50%,-22%);border-radius:50%;
+/* the glow's bright core sits 20% of its size below its anchor point; the halo and the rays share that exact center */
+.halo{position:absolute;left:38%;top:-6vh;width:62vw;height:62vw;max-width:460px;max-height:460px;transform:translate(-50%,calc(-50% + .2 * min(120vw,900px)));border-radius:50%;
   box-shadow:0 0 0 2px rgba(255,220,180,.10), inset 0 0 40px rgba(255,200,170,.12);transition:opacity 1s}
 /* sunlight that follows the real sun: a warm wash along the horizon at sunrise/sunset, rose-violet dusk after */
 .sunwash{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 2s,background 2s}
@@ -66,7 +67,7 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 .shoot{position:absolute;width:130px;height:1.6px;border-radius:2px;transform-origin:0 50%;opacity:0;
   background:linear-gradient(90deg,rgba(255,255,255,.95),rgba(255,255,255,0))}
 /* clear days: faint light rays turning slowly around the sun */
-.rays{position:absolute;left:38%;top:-6vh;width:170vmax;height:170vmax;translate:-50% -50%;pointer-events:none;
+.rays{position:absolute;left:38%;top:-6vh;width:170vmax;height:170vmax;translate:-50% calc(-50% + .2 * min(120vw,900px));pointer-events:none;
   background:repeating-conic-gradient(from 0deg,rgba(255,250,232,.075) 0 3deg,rgba(255,250,232,0) 5deg 12deg,rgba(255,250,232,.04) 14deg 15deg,rgba(255,250,232,0) 17deg 24deg);
   -webkit-mask:radial-gradient(circle,#000 0,rgba(0,0,0,.5) 18%,transparent 45%);mask:radial-gradient(circle,#000 0,rgba(0,0,0,.5) 18%,transparent 45%);
   animation:rays 150s linear infinite;transition:opacity 2s,left 2s,top 2s;opacity:0}
@@ -123,8 +124,8 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 /* the selected hour: a soft band behind its column, moved as the row scrolls */
 .hl{position:absolute;top:0;bottom:0;left:0;border-radius:12px;pointer-events:none;z-index:0;
   background:linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,.13) 35%,rgba(255,255,255,.16));transition:transform .2s ease-out}
-.knob,.hz{transition:transform .2s ease-out}
-.lb{transition:opacity .15s}
+/* the bead and its level line follow the scroll frame by frame, so they need no easing of their own */
+.hourly .knob,.hourly .hz{transition:none;will-change:transform}
 .hinner svg{display:block}
 .hrow{display:flex}
 .hcol{flex:none;display:flex;flex-direction:column;align-items:center;gap:5px}
@@ -133,6 +134,13 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 .hcol .t{font-size:16px;color:var(--ink-soft);font-variant-numeric:tabular-nums;transition:color .2s}
 .hcol.sel .t{color:#fff;font-weight:500}
 .hcol.now .t{font-size:19px}
+/* unfolded: the half-hour columns are narrow and quiet, a small tick and time only */
+.hcol.half .hd{width:28px;height:28px;display:grid;place-items:center}
+.hcol.half .hd::after{content:"";width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.35)}
+.hcol.half .t{font-size:10.5px;color:var(--ink-faint);letter-spacing:-.02em}
+/* unfolded, the hour columns are narrower too: the time a touch smaller so "10 PM" still fits */
+@media (min-width:600px){.hcol .t{font-size:14.5px}.hcol.now .t{font-size:17px}}
+.hcol.half.sel .t{color:#fff;font-weight:500}
 .hcol .pp{font-size:11px;color:#bfe6ff;height:1em;margin-top:-4px}
 /* wind and UV for each hour (icons always; the words only under the selected hour) */
 .hx{display:flex;flex-direction:column;align-items:center;gap:1px;height:36px}
@@ -164,6 +172,70 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 .dmore svg{transition:rotate .25s}
 .drow .lo{text-align:right;color:rgba(255,255,255,.62);font-variant-numeric:tabular-nums}
 .drow .hi{text-align:right;font-variant-numeric:tabular-nums}
+.drow{cursor:pointer;border-radius:12px;-webkit-tap-highlight-color:transparent}
+.drow:focus-visible{outline:2px solid #fff;outline-offset:2px}
+
+/* ---- day detail: tap a day for its hour-by-hour temperature line ---- */
+.dsheet{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;
+  background:rgba(10,30,60,.38);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;transition:opacity .28s;
+  padding:16px max(12px,var(--sar,env(safe-area-inset-right,0px))) max(12px,env(safe-area-inset-bottom,0px)) max(12px,var(--sal,env(safe-area-inset-left,0px)))}
+.dsheet.open{opacity:1}
+@media (min-width:700px){.dsheet{align-items:center}}
+.dsheet .dpanel{position:relative;width:100%;max-width:520px;max-height:calc(100vh - 32px);overflow-y:auto;overscroll-behavior:contain;
+  background:linear-gradient(180deg,rgba(80,130,200,.55),rgba(60,105,180,.62));border:1px solid var(--glass-line);border-radius:26px;
+  backdrop-filter:blur(22px) saturate(1.2);-webkit-backdrop-filter:blur(22px) saturate(1.2);box-shadow:0 18px 50px rgba(0,25,70,.35);
+  padding:16px 18px 18px;touch-action:pan-y}
+.dsheet .grab{width:38px;height:5px;border-radius:3px;background:rgba(255,255,255,.4);margin:-6px auto 10px}
+.dhead{display:flex;align-items:center;gap:12px}
+.dhead .icon{width:46px;height:46px;flex:none}
+.dhead .tt{flex:1;min-width:0}
+.dhead .dn{font-size:20px;font-weight:600;text-shadow:0 1px 4px rgba(0,30,80,.3)}
+.dhead .dc{font-size:14px;color:var(--ink-soft);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dhead .rg{font-size:26px;font-weight:300;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dhead .rg span{color:var(--ink-faint)}
+.dhead .rg small{font-size:14px;color:var(--ink-faint)}
+.dnav{display:flex;justify-content:flex-end;gap:6px;margin:-4px -4px 6px}
+.dhead .mi{width:46px;height:46px;flex:none;display:grid;place-items:center;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid var(--glass-line)}
+.dhead .mi svg{width:24px;height:24px}
+.dchips{display:flex;gap:6px;overflow-x:auto;margin:14px -18px 0;padding:2px 18px;scrollbar-width:none;scroll-behavior:smooth}
+.dchips::-webkit-scrollbar{display:none}
+.dchips button{flex:none;border:1px solid var(--glass-line);background:rgba(255,255,255,.1);border-radius:16px;padding:6px 13px;font-size:14px;color:var(--ink-soft);
+  transition:background .2s,color .2s,transform .3s cubic-bezier(.3,1.6,.5,1)}
+.dchips button:active{transform:scale(.94)}
+.dchips button.on{background:rgba(255,255,255,.9);color:#1d3557;font-weight:600;border-color:transparent}
+.dabout{font-size:13px;line-height:1.4;color:var(--ink-faint);margin:12px 2px 0}
+.tile{cursor:pointer}
+.uvers{display:flex;align-items:center;gap:10px;margin:16px 2px 0;font-size:18px;font-variant-numeric:tabular-nums}
+.uvers span{color:var(--ink-faint)}
+.uvers b{font-weight:600}
+.unotes{margin-top:12px;max-height:38vh;overflow-y:auto;white-space:pre-line;font-size:14px;line-height:1.45;color:var(--ink-soft);
+  background:rgba(255,255,255,.08);border:1px solid var(--glass-line);border-radius:16px;padding:12px 14px}
+.ubtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.ubtn{flex:1 1 auto;border:1px solid var(--glass-line);background:rgba(255,255,255,.12);border-radius:16px;padding:12px 14px;font-size:15px;
+  transition:transform .3s cubic-bezier(.3,1.6,.5,1),background .2s}
+.ubtn:active{transform:scale(.95)}
+.ubtn.main{flex-basis:100%;background:rgba(255,255,255,.92);color:#1d3557;font-weight:600;border-color:transparent}
+#mUpdate small{font-size:12px;opacity:.6;margin-left:4px}
+#mUpdate small.new{opacity:1;background:#ff9a3c;color:#fff;border-radius:8px;padding:1px 7px;font-weight:600}
+.dnav .round{width:36px;height:36px;padding:0}
+.dnav .round:disabled{opacity:.3;cursor:default}
+.dread{display:flex;align-items:baseline;gap:10px;margin:16px 2px 2px;min-height:26px;font-variant-numeric:tabular-nums}
+.dread b{font-size:22px;font-weight:600}
+.dread .h{font-size:15px;color:var(--ink-soft)}
+.dread .x{margin-left:auto;font-size:13px;color:var(--ink-faint);text-align:right}
+.dchart{position:relative;margin:4px -4px 0;touch-action:none;user-select:none;-webkit-user-select:none;cursor:crosshair}
+.dchart svg{display:block;width:100%;overflow:visible}
+.dchart .knob{transition:transform .12s ease-out}
+.dchart .vline{transition:transform .12s ease-out}
+.dchart.drag .knob circle{transform:scale(1.18)}
+.dchart .knob circle{transition:transform .2s}
+.dlegend{display:flex;gap:14px;font-size:12px;color:var(--ink-faint);margin:6px 2px 0}
+.dlegend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.dstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.dstats div{background:rgba(255,255,255,.1);border:1px solid var(--glass-line);border-radius:16px;padding:9px 11px;min-width:0}
+.dstats small{display:block;font-size:12px;color:var(--ink-faint)}
+.dstats b{display:block;font-size:16px;font-weight:500;margin-top:2px;line-height:1.25;font-variant-numeric:tabular-nums}
+.dchart .ml{transition:opacity .15s}
 
 /* ---- details ---- */
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
@@ -353,16 +425,28 @@ input{-webkit-user-select:text;user-select:text}
 .dark .rv .tl .lab b{color:#e9edf5}
 .dark .rv input[type=range]{background:linear-gradient(90deg,#4d8dff var(--p,100%),rgba(255,255,255,.18) var(--p,100%))}
 
-/* ---- elastic glass touch: a panel leans toward your finger and a soft light spot follows the touch ---- */
+/* ---- droplet shimmer: pressing a panel sends a water ripple across the whole glass, a sheen sweeps over it,
+   its rim lights up, and the panel gives like a droplet before springing back ---- */
 .tile,.daily,.radar,.sun,.ccard,.csearch,.chip,.hourly .hinner{position:relative}
 .tile,.daily,.radar,.sun,.ccard,.csearch,.chip{transition:box-shadow .3s}
-.et-on{box-shadow:inset 0 0 0 100vmax rgba(255,255,255,.07)!important;transition:box-shadow .08s!important}   /* the whole panel brightens a touch */
-.et-spot{position:absolute;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;pointer-events:none;z-index:3;
-  background:radial-gradient(circle,rgba(255,255,255,.62) 0 22%,rgba(255,255,255,.34) 45%,rgba(255,255,255,0) 70%);
-  filter:blur(2px);opacity:0;transform:scale(.7);transition:opacity .12s,transform .25s ease-out}
-.et-spot.on{opacity:1;transform:scale(1)}
-.et-spot.off{opacity:0;transform:scale(1.15);transition:opacity .4s ease-out,transform .4s ease-out}
-.ccard .et-spot{z-index:1}
+.et-on{box-shadow:inset 0 0 0 100vmax rgba(255,255,255,.06),0 0 0 1px rgba(255,255,255,.28),0 6px 26px rgba(160,210,255,.22)!important;transition:box-shadow .12s!important}
+.et-fx{position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;z-index:3;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.4),inset 0 0 22px rgba(255,255,255,.16);opacity:0;transition:opacity .16s}
+.et-fx.on{opacity:1}
+.et-fx.off{opacity:0;transition:opacity .55s ease-out}
+.ccard .et-fx{z-index:1}
+/* rings spreading out from the touch, like a drop landing on water */
+.et-ring{position:absolute;border-radius:50%;translate:-50% -50%;scale:.04;opacity:0;
+  background:radial-gradient(circle,rgba(255,255,255,0) 54%,rgba(255,255,255,.2) 63%,rgba(225,245,255,.34) 67%,rgba(255,255,255,.1) 70%,rgba(255,255,255,0) 74%);
+  animation:etRing .9s cubic-bezier(.2,.7,.3,1) forwards}
+.et-ring.two{animation-delay:.13s;animation-duration:1.05s;filter:blur(1px)}
+@keyframes etRing{0%{scale:.04;opacity:0}12%{opacity:1}100%{scale:1;opacity:0}}
+/* a liquid sheen sliding across the panel */
+.et-fx::before{content:"";position:absolute;inset:-20% -60%;
+  background:linear-gradient(110deg,rgba(255,255,255,0) 38%,rgba(255,255,255,.16) 46%,rgba(220,240,255,.26) 50%,rgba(255,255,255,.12) 54%,rgba(255,255,255,0) 62%);
+  translate:-60% 0;animation:etSheen .85s cubic-bezier(.3,.6,.3,1) forwards}
+@keyframes etSheen{to{translate:60% 0}}
+@media (prefers-reduced-motion:reduce){.et-ring,.et-fx::before{animation:none;opacity:0}}
 /* hourly slider: the temperature circle swells into a glass bead while you drag */
 .knob circle{transform-box:fill-box;transform-origin:center;transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
 .hourly.touching .knob circle{transform:scale(1.22)}
@@ -375,12 +459,18 @@ input{-webkit-user-select:text;user-select:text}
 /* ---- liquid glass buttons: on press a button turns into a clear glass droplet, then springs back ---- */
 .round,.pill,.cbtn,.cgroup button{transition:transform .38s cubic-bezier(.3,1.6,.5,1),background .25s,box-shadow .25s,backdrop-filter .25s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .round > *,.pill > *,.cbtn > *,.cgroup button > *{transition:filter .2s,opacity .2s}
-.lg-press{transform:scale(1.16)!important;
+.lg-press{transform:var(--pull,translate(0)) scale(1.16)!important;
   background:radial-gradient(circle at 34% 28%,rgba(255,255,255,.62),rgba(255,255,255,.14) 42%,rgba(190,220,255,.06) 70%,rgba(255,255,255,.22))!important;
   box-shadow:inset 0 0 0 1.4px rgba(255,255,255,.8),inset 0 -5px 10px rgba(255,255,255,.28),inset 0 4px 8px rgba(255,255,255,.18),0 8px 22px rgba(0,30,80,.22)!important;
   backdrop-filter:blur(1.5px) brightness(1.18) saturate(1.3)!important;-webkit-backdrop-filter:blur(1.5px) brightness(1.18) saturate(1.3)!important}
 .lg-press > *{filter:blur(1.2px);opacity:.75}
 .lg-release{animation:lgJelly .55s cubic-bezier(.3,.7,.4,1)}
+/* while a button is being pulled it follows the finger directly, with no easing in between */
+.pulling > *{transform:var(--unpull,none)}
+.pt{display:inline-block;white-space:pre}
+.pulling > :is(small,b,strong,em,i){display:inline-block}
+.pulling{transform:var(--pull);transition:background .25s,box-shadow .25s,backdrop-filter .25s!important;will-change:transform;z-index:2}
+.round,.ubtn,.cbtn,.cgroup button{touch-action:none}
 @keyframes lgJelly{0%{transform:scale(1.16)}30%{transform:scale(.92,1.06)}55%{transform:scale(1.05,.96)}78%{transform:scale(.99,1.01)}100%{transform:none}}
 
 /* ---- glass menu that grows out of the ⋮ button ---- */
@@ -401,6 +491,7 @@ input{-webkit-user-select:text;user-select:text}
 .btn-return{animation:btnReturn .34s cubic-bezier(.3,1.3,.5,1)}
 .gmenu button{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:none;font:inherit;font-size:16px;color:#16202e;padding:14px 20px;text-align:left}
 .gmenu button + button{border-top:1px solid rgba(20,40,80,.09)}
+.gmenu button[hidden]{display:none}
 .gmenu button:active{background:rgba(255,255,255,.35)}
 .gmenu small{color:#5b6680;font-size:13px}
 .gscrim{position:fixed;inset:0;z-index:39}
@@ -592,6 +683,8 @@ input{-webkit-user-select:text;user-select:text}
     <button id="mUnit" role="menuitem"></button>
     <button id="mCities" role="menuitem">Manage cities</button>
     <button id="mShare" role="menuitem">Share weather</button>
+    <button id="mHalf" role="menuitem" hidden></button>
+    <button id="mUpdate" role="menuitem">Check for updates</button>
   </div>
 </div>
 <div class="ptr" id="ptr"><svg viewBox="0 0 22 22"><circle id="ptrArc" cx="11" cy="11" r="9" pathLength="100" stroke-dasharray="0 100" transform="rotate(-90 11 11)"/></svg></div>
@@ -658,7 +751,7 @@ const cache = {};   // full forecasts by city, so swiping back is instant
 const sums = {};    // small summaries for the city cards
 
 const CODES = {
-  0:['Sunny','clear'],1:['Mostly sunny','clear'],2:['Partly cloudy','partly'],3:['Cloudy','cloud'],
+  0:['Clear and sunny','clear'],1:['Mostly sunny','clear'],2:['Partly cloudy','partly'],3:['Cloudy','cloud'],
   45:['Fog','fog'],48:['Freezing fog','fog'],
   51:['Light drizzle','rain'],53:['Drizzle','rain'],55:['Heavy drizzle','rain'],56:['Freezing drizzle','rain'],57:['Freezing drizzle','rain'],
   61:['Light rain','rain'],63:['Rain','rain'],65:['Heavy rain','rain'],66:['Freezing rain','rain'],67:['Freezing rain','rain'],
@@ -668,7 +761,7 @@ const CODES = {
 };
 const cond = c => CODES[c] || ['—','cloud'];
 // at night a clear sky isn't "sunny": the system app says Clear / Mostly clear
-const nightWord = (label, day) => day ? label : label === 'Sunny' ? 'Clear' : label === 'Mostly sunny' ? 'Mostly clear' : label;
+const nightWord = (label, day) => day ? label : label === 'Sunny' || label === 'Clear and sunny' ? 'Clear' : label === 'Mostly sunny' ? 'Mostly clear' : label;
 
 // [top, mid-horizon, lower] per condition, day / night
 const SKY = {
@@ -734,8 +827,8 @@ async function load(){
   $('refreshBtn').classList.add('spin');
   const p = new URLSearchParams({
     latitude:place.lat, longitude:place.lon, timezone:'auto', forecast_days:16,
-    current:'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,pressure_msl,uv_index',
-    hourly:'temperature_2m,weather_code,precipitation_probability,is_day,visibility,pressure_msl,wind_speed_10m,wind_direction_10m,uv_index',
+    current:'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,pressure_msl,uv_index,cloud_cover',
+    hourly:'temperature_2m,weather_code,precipitation_probability,is_day,visibility,pressure_msl,wind_speed_10m,wind_direction_10m,uv_index,apparent_temperature,relative_humidity_2m,precipitation,dew_point_2m,wind_gusts_10m',
     daily:'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,precipitation_sum'
   });
   try {
@@ -837,7 +930,8 @@ function sunTick(){
 setInterval(sunTick, 60 * 1000);
 window.__sunAt = m => { sunOverride = m; sunTick(); return sunState(); };   // test hook: minutes after midnight, or null
 
-function scene(kind, day){
+// bare: a clear sky with no clouds at all (no clouds are drawn)
+function scene(kind, day, bare = false){
   sunKind = kind;
   tintTemp(kind, day);
   const s = SKY[kind][day?0:1];
@@ -847,7 +941,7 @@ function scene(kind, day){
   document.querySelector('meta[name=theme-color]').content = s[0];
   try { window.AndroidApp && window.AndroidApp.setSky(s[0], s[0]); } catch {}
   sunTick();
-  drawClouds(kind, day);
+  drawClouds(kind, day, bare);
   particles(kind);
   starSky(kind, day);
 }
@@ -859,14 +953,17 @@ const CLOUD_SET = {clear:'light', partly:'light', cloud:'medium', fog:'heavy', r
 const STRIP_TILES = 8, SECONDS_PER_SCREEN = 75;   // 40% slower than the first 45 s; the sky repeats every 10 minutes
 let cloudSet = null, cloudLoop = 0;
 const tileSrc = k => `clouds-${cloudSet}-${((k % STRIP_TILES) + STRIP_TILES) % STRIP_TILES}.webp`;
-function drawClouds(kind, day){
+let cloudsBare = false;
+function drawClouds(kind, day, bare = false){
   const box = $('clouds');
   const set = CLOUD_SET[kind];
+  cloudsBare = bare;
   if (set !== cloudSet) {
     cloudSet = set;
     box.style.opacity = 0;
-    const first = new Image(); first.onload = () => box.style.opacity = 1; first.src = tileSrc(0);
-  }
+    const first = new Image(); first.onload = () => { if (!cloudsBare) box.style.opacity = 1; }; first.src = tileSrc(0);
+  } else box.style.opacity = bare ? 0 : 1;      // the clouds fade away for a cloudless sky, and back when they return
+  if (bare) box.style.opacity = 0;
   box.style.filter = !day ? (kind==='rain'||kind==='storm' ? 'brightness(.34) saturate(.7) hue-rotate(10deg)' : 'brightness(.44) saturate(.85) hue-rotate(10deg)')
     : ({fog:'saturate(.45) brightness(1.04) contrast(.9)', rain:'brightness(.8) saturate(.6)', snow:'brightness(.95) saturate(.6)', storm:'brightness(.6) saturate(.55)'})[kind] || 'none';
   if (!cloudLoop) cloudLoop = requestAnimationFrame(moveClouds);
@@ -982,7 +1079,8 @@ window.__scene = (k, d) => { scene(k, d); if (k === 'clear' && !d) shootingStar(
 // Each hold shows the next one; after the last it goes back to the live weather.
 const SKY_PREVIEWS = [
   ['Clear night', 'clear', false, st => st.set + 150],
-  ['Clear day', 'clear', true, st => (st.rise + st.set) / 2],
+  ['Clear and sunny', 'clear', true, st => (st.rise + st.set) / 2, true],
+  ['Mostly sunny day', 'clear', true, st => (st.rise + st.set) / 2],
   ['Sunset', 'clear', true, st => st.set - 12],
   ['Partly cloudy night', 'partly', false, st => st.set + 150],
   ['Partly cloudy day', 'partly', true, st => (st.rise + st.set) / 2],
@@ -994,10 +1092,10 @@ const SKY_PREVIEWS = [
 ];
 let skyPreview = 0;                                   // 0 = live weather, otherwise 1-based index into SKY_PREVIEWS
 function showPreview(){
-  const [, kind, day, at] = SKY_PREVIEWS[skyPreview - 1];
+  const [, kind, day, at, bare] = SKY_PREVIEWS[skyPreview - 1];
   sunOverride = null; const st = sunState();
   sunOverride = st ? Math.round(at(st)) : null;
-  scene(kind, day);
+  scene(kind, day, !!bare);
 }
 function skyToast(text){
   let t = document.querySelector('.skytoast');
@@ -1217,33 +1315,304 @@ document.addEventListener('click', e => {
   }
 });
 
+// ---- day detail: tap a day (or a detail tile) for that measure hour by hour, plus the day's numbers ----
+let dsheet = null, dIdx = 0, dMet = 'temp', dFrom = null;
+const longDay = (iso, i) => {
+  const [y, m, dd] = iso.split('-').map(Number), dt = new Date(y, m - 1, dd);
+  const date = dt.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+  return i === 0 ? `Today · ${date}` : i === 1 ? `Tomorrow · ${date}` : `${dt.toLocaleDateString('en-US', {weekday: 'long'})} · ${date}`;
+};
+const chev = left => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="${left ? 'M15 6l-6 6 6 6' : 'M9 6l6 6-6 6'}"/></svg>`;
+// numbers in the units on screen (the strings come from wind(), vis(), pressure() and precip())
+const windN = k => unit === 'F' ? k * 0.621371 : k, windU = () => unit === 'F' ? 'mph' : 'km/h';
+const visN = m => unit === 'F' ? m / 1609.34 : m / 1000, visU = () => unit === 'F' ? 'mi' : 'km';
+const presN = p => unit === 'F' ? p * 0.02953 : p;
+const presS = v => unit === 'F' ? `${v.toFixed(2)} inHg` : `${Math.round(v)} hPa`;
+const H_ = (k, key) => data.hourly[key]?.[k];
+const hr = k => ampm(data.hourly.time[k]);
+// the day's hours, and helpers that pick out the highest / lowest hour of a measure
+const dayHours = i => { const ks = []; data.hourly.time.forEach((t, k) => { if (t.startsWith(data.daily.time[i])) ks.push(k); }); return ks; };
+const pick = (ks, get, best) => { let r = null; ks.forEach(k => { const v = get(k); if (v != null && (r == null || (best > 0 ? v > get(r) : v < get(r)))) r = k; }); return r; };
+const avg = (ks, get) => { const v = ks.map(get).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+const span = (ks, test) => { const on = ks.filter(test); return on.length ? `${hr(on[0])} – ${hr(on[on.length - 1])}` : null; };
+
+// Every measure the popup can chart. get() returns the hour's value in the units on screen.
+const METRICS = {
+  temp: {name: 'Temperature', short: 'Temp', icon: 'thermo', get: k => T(H_(k, 'temperature_2m')), lbl: v => `${Math.round(v)}°`, fmt: v => `${Math.round(v)}°${unit}`,
+    minSpan: 4, grad: ['#ffa64d', '#ffc56b', '#a6f0a0'], area: '255,214,140',
+    bars: k => (H_(k, 'precipitation_probability') ?? 0) / 100, bar: '143,208,255', legend: [['linear-gradient(90deg,#a6f0a0,#ffa64d)', 'Temperature'], ['#8fd0ff', 'Chance of rain']],
+    extra: k => { const [lb] = cond(H_(k, 'weather_code')); return `${nightWord(lb, !!H_(k, 'is_day'))} · ${H_(k, 'precipitation_probability') ?? 0}% rain${H_(k, 'wind_speed_10m') != null ? ` · ${wind(H_(k, 'wind_speed_10m'))}` : ''}`; },
+    stats: (i, ks) => { const d = data.daily, wk = pick(ks, k => H_(k, 'wind_speed_10m'), 1); return [
+      ['Rain chance', `${d.precipitation_probability_max[i] ?? 0}%`], ['Rain total', precip(d.precipitation_sum[i] ?? 0)],
+      ['Max wind', wk != null ? `${wind(H_(wk, 'wind_speed_10m'))} ${dir(H_(wk, 'wind_direction_10m'))}` : '—'],
+      ['UV peak', `${Math.round(d.uv_index_max[i] ?? 0)} ${uvWord(d.uv_index_max[i] ?? 0)}`], ['Sunrise', hhmm(d.sunrise[i])], ['Sunset', hhmm(d.sunset[i])]]; }},
+  feels: {name: 'Feels like', short: 'Feels like', icon: 'thermo', get: k => H_(k, 'apparent_temperature') == null ? null : T(H_(k, 'apparent_temperature')),
+    lbl: v => `${Math.round(v)}°`, fmt: v => `${Math.round(v)}°${unit}`, minSpan: 4, grad: ['#ff8a4c', '#ffd35c', '#62d6e8'], area: '255,200,120',
+    extra: k => `Actual ${tf(H_(k, 'temperature_2m'))}° · ${feelsWord(H_(k, 'apparent_temperature'))}`,
+    stats: (i, ks) => { const g = k => H_(k, 'apparent_temperature'), hi = pick(ks, g, 1), lo = pick(ks, g, -1);
+      const gap = pick(ks, k => g(k) == null ? null : Math.abs(g(k) - H_(k, 'temperature_2m')), 1), dg = gap != null ? Math.round(T(g(gap)) - T(H_(gap, 'temperature_2m'))) : 0;
+      return [['Warmest feel', hi != null ? `${tf(g(hi))}° at ${hr(hi)}` : '—'], ['Coolest feel', lo != null ? `${tf(g(lo))}° at ${hr(lo)}` : '—'],
+        ['Biggest gap', dg ? `${Math.abs(dg)}° ${dg > 0 ? 'warmer' : 'colder'} at ${hr(gap)}` : 'Feels as it is']]; },
+    about: 'Feels like blends temperature with wind and humidity: wind makes it feel colder, damp air warmer.'},
+  precip: {name: 'Precipitation', short: 'Rain', icon: 'rain', get: k => H_(k, 'precipitation_probability'), lbl: v => `${Math.round(v)}%`, fmt: v => `${Math.round(v)}% chance`,
+    floor: 0, ceil: 100, minSpan: 100, grad: ['#4a9ff0', '#8fd0ff', '#d9f0ff'], area: '143,208,255',
+    bars: k => Math.min(1, (H_(k, 'precipitation') ?? 0) / Math.max(1, ...dayHours(dIdx).map(j => H_(j, 'precipitation') ?? 0))), bar: '120,190,255',
+    legend: [['#8fd0ff', 'Chance'], ['rgba(120,190,255,.9)', 'Amount']],
+    extra: k => `${precip(H_(k, 'precipitation') ?? 0)} expected`,
+    stats: (i, ks) => { const d = data.daily, wet = pick(ks, k => H_(k, 'precipitation'), 1), n = ks.filter(k => (H_(k, 'precipitation_probability') ?? 0) >= 50).length;
+      return [['Chance', `${d.precipitation_probability_max[i] ?? 0}%`], ['Total', precip(d.precipitation_sum[i] ?? 0)],
+        ['Wettest hour', wet != null && H_(wet, 'precipitation') > 0 ? `${hr(wet)} · ${precip(H_(wet, 'precipitation'))}` : 'Dry'], ['Likely hours', n ? `${n} h` : 'None']]; },
+    about: 'The line is the chance of rain or snow each hour; bars show how much is expected.'},
+  wind: {name: 'Wind', short: 'Wind', icon: 'wind', get: k => H_(k, 'wind_speed_10m') == null ? null : windN(H_(k, 'wind_speed_10m')),
+    u: windU, lbl: v => `${Math.round(v)}`, fmt: v => `${Math.round(v)} ${windU()}`, floor: 0, minSpan: 10, grad: ['#e8f6ff', '#a6e3ff', '#7fc4f5'], area: '190,230,255',
+    bars: k => { const g = H_(k, 'wind_gusts_10m'), mx = Math.max(1, ...dayHours(dIdx).map(j => H_(j, 'wind_gusts_10m') ?? 0)); return g == null ? 0 : g / mx; }, bar: '220,240,255',
+    legend: [['linear-gradient(90deg,#7fc4f5,#e8f6ff)', 'Speed'], ['rgba(220,240,255,.8)', 'Gusts']],
+    extra: k => `From ${dir(H_(k, 'wind_direction_10m'))}${H_(k, 'wind_gusts_10m') != null ? ` · gusts ${wind(H_(k, 'wind_gusts_10m'))}` : ''} · Force ${beaufort(H_(k, 'wind_speed_10m'))}`,
+    stats: (i, ks) => { const s = k => H_(k, 'wind_speed_10m'), hi = pick(ks, s, 1), lo = pick(ks, s, -1), gu = pick(ks, k => H_(k, 'wind_gusts_10m'), 1);
+      let x = 0, y = 0; ks.forEach(k => { const a = (H_(k, 'wind_direction_10m') ?? 0) * Math.PI / 180, w = s(k) ?? 0; x += Math.sin(a) * w; y += Math.cos(a) * w; });
+      const from = (Math.atan2(x, y) * 180 / Math.PI + 360) % 360;
+      return [['Strongest', hi != null ? `${wind(s(hi))} at ${hr(hi)}` : '—'], ['Calmest', lo != null ? `${wind(s(lo))} at ${hr(lo)}` : '—'],
+        ['Top gust', gu != null ? wind(H_(gu, 'wind_gusts_10m')) : '—'], ['Mostly from', dir(from)]]; }},
+  humid: {name: 'Humidity', short: 'Humidity', icon: 'drop', get: k => H_(k, 'relative_humidity_2m'), lbl: v => `${Math.round(v)}%`, fmt: v => `${Math.round(v)}%`,
+    floor: 0, ceil: 100, minSpan: 30, grad: ['#4a9ff0', '#8fd0ff', '#e0f4ff'], area: '143,208,255',
+    extra: k => `${humidWord(H_(k, 'relative_humidity_2m'))}${H_(k, 'dew_point_2m') != null ? ` · dew point ${tf(H_(k, 'dew_point_2m'))}°` : ''}`,
+    stats: (i, ks) => { const g = k => H_(k, 'relative_humidity_2m'), hi = pick(ks, g, 1), lo = pick(ks, g, -1), a = avg(ks, g);
+      return [['Highest', hi != null ? `${g(hi)}% at ${hr(hi)}` : '—'], ['Lowest', lo != null ? `${g(lo)}% at ${hr(lo)}` : '—'], ['Average', a != null ? `${Math.round(a)}%` : '—']]; },
+    about: 'Humidity usually climbs overnight as the air cools and drops in the afternoon as it warms.'},
+  uv: {name: 'UV index', short: 'UV', icon: 'uv', get: k => H_(k, 'uv_index'), lbl: v => `${Math.round(v)}`, fmt: v => `${Math.round(v)} · ${uvWord(v)}`,
+    floor: 0, minSpan: 8, grad: ['#b46bff', '#ff5a4e', '#ffa94a', '#f5e05a', '#7ee07a'], area: '255,200,90',
+    extra: k => uvHourWord(H_(k, 'uv_index') ?? 0),
+    stats: (i, ks) => { const g = k => H_(k, 'uv_index'), hi = pick(ks, g, 1);
+      return [['Peak', hi != null ? `${Math.round(g(hi))} ${uvWord(g(hi))}` : '—'], ['Peak at', hi != null ? hr(hi) : '—'],
+        ['Sun protection', span(ks, k => (g(k) ?? 0) >= 3) || 'Not needed']]; },
+    about: 'At 3 or higher, wear sunscreen and shade your eyes; at 8 or more, avoid the midday sun.'},
+  vis: {name: 'Visibility', short: 'Visibility', icon: 'eye', get: k => H_(k, 'visibility') == null ? null : visN(H_(k, 'visibility')),
+    u: visU, lbl: v => `${v < 10 ? v.toFixed(1) : Math.round(v)}`, fmt: v => `${v < 10 ? v.toFixed(1) : Math.round(v)} ${visU()}`, floor: 0, minSpan: 5, grad: ['#ffffff', '#dfefff', '#9fb8d6'], area: '230,240,255',
+    extra: k => visWord(H_(k, 'visibility') ?? 20000),
+    stats: (i, ks) => { const g = k => H_(k, 'visibility'), hi = pick(ks, g, 1), lo = pick(ks, g, -1);
+      return [['Clearest', hi != null ? vis(g(hi)) : '—'], ['Haziest', lo != null ? `${vis(g(lo))} at ${hr(lo)}` : '—'], ['Overall', lo != null ? visWord(g(lo)) : '—']]; },
+    about: 'Fog, rain, snow and haze shorten how far you can see.'},
+  pressure: {name: 'Pressure', short: 'Pressure', icon: 'gauge', get: k => H_(k, 'pressure_msl') == null ? null : presN(H_(k, 'pressure_msl')),
+    u: () => unit === 'F' ? 'inHg' : 'hPa', lbl: v => unit === 'F' ? v.toFixed(2) : `${Math.round(v)}`, fmt: presS, get minSpan(){ return unit === 'F' ? .12 : 4; }, grad: ['#f0e6ff', '#c9cdfa', '#9fb4ef'], area: '200,205,250',
+    extra: k => { const p = H_(k, 'pressure_msl'), n = H_(k + 3, 'pressure_msl'); return n == null ? '' : n - p > 1 ? 'Rising' : n - p < -1 ? 'Falling' : 'Steady'; },
+    stats: (i, ks) => { const g = k => H_(k, 'pressure_msl'), hi = pick(ks, g, 1), lo = pick(ks, g, -1), a = g(ks[0]), b = g(ks[ks.length - 1]);
+      const ch = a != null && b != null ? b - a : 0;
+      return [['Highest', hi != null ? pressure(g(hi)) : '—'], ['Lowest', lo != null ? pressure(g(lo)) : '—'],
+        ['Over the day', Math.abs(ch) < 1 ? 'Steady' : `${ch > 0 ? 'Rising' : 'Falling'} ${unit === 'F' ? Math.abs(ch * 0.02953).toFixed(2) + ' inHg' : Math.round(Math.abs(ch)) + ' hPa'}`]]; },
+    about: 'Falling pressure often brings clouds and rain; rising pressure usually means clearing.'},
+  dew: {name: 'Dew point', short: 'Dew point', icon: 'dew', get: k => H_(k, 'dew_point_2m') == null ? null : T(H_(k, 'dew_point_2m')),
+    lbl: v => `${Math.round(v)}°`, fmt: v => `${Math.round(v)}°${unit}`, minSpan: 4, grad: ['#62d6e8', '#9be8f0', '#d8f7fb'], area: '150,225,240',
+    extra: k => dewWord(H_(k, 'dew_point_2m')),
+    stats: (i, ks) => { const g = k => H_(k, 'dew_point_2m'), hi = pick(ks, g, 1), lo = pick(ks, g, -1);
+      return [['Highest', hi != null ? `${tf(g(hi))}° at ${hr(hi)}` : '—'], ['Lowest', lo != null ? `${tf(g(lo))}°` : '—'], ['Feels', hi != null ? dewWord(g(hi)) : '—']]; },
+    about: 'The higher the dew point, the stickier the air feels.'}
+};
+const TILE_METRIC = {thermo: 'feels', wind: 'wind', drop: 'humid', uv: 'uv', eye: 'vis', gauge: 'pressure', rain: 'precip', dew: 'dew'};
+
+function dayChart(i, W, M){
+  const h = data.hourly, ks = dayHours(i);
+  if (ks.length < 2) return null;
+  const raw = ks.map(M.get);
+  if (raw.every(v => v == null)) return null;
+  // a missing hour borrows its neighbour's value so the line stays whole
+  const vals = raw.map((v, j) => { if (v != null) return v; for (let d = 1; d < raw.length; d++) { if (raw[j - d] != null) return raw[j - d]; if (raw[j + d] != null) return raw[j + d]; } return 0; });
+  const n = ks.length, Hh = 196, padX = 16, top = 34, bot = 108, b0 = 140, b1 = 168;
+  const step = (W - 2 * padX) / (n - 1), X = j => padX + j * step;
+  let mn = Math.min(...vals), mx = Math.max(...vals);
+  if (mx - mn < M.minSpan) { const c = (mx + mn) / 2; mn = c - M.minSpan / 2; mx = c + M.minSpan / 2; }
+  if (M.floor != null && mn < M.floor) { mx += M.floor - mn; mn = M.floor; }
+  if (M.ceil != null && mx > M.ceil) { mn = Math.max(M.floor ?? -Infinity, mn - (mx - M.ceil)); mx = M.ceil; }
+  const Y = v => bot - (v - mn) / (mx - mn) * (bot - top);
+  const pts = vals.map((v, j) => [X(j), Y(v)]);
+  const hiJ = vals.indexOf(Math.max(...vals)), loJ = vals.indexOf(Math.min(...vals));
+  // night: shade the hours between sunset and sunrise
+  let night = '', s = -1;
+  ks.forEach((k, j) => {
+    const dark = !h.is_day[k];
+    if (dark && s < 0) s = j;
+    if ((!dark || j === n - 1) && s >= 0) { const e = dark ? j : j - 1, x0 = Math.max(0, X(s) - step / 2);
+      night += `<rect x="${x0}" y="0" width="${Math.min(W, X(e) + step / 2) - x0}" height="${b1}" fill="rgba(10,25,70,.16)"/>`; s = -1; }
+  });
+  const bars = M.bars ? ks.map((k, j) => { const f = Math.max(0, Math.min(1, M.bars(k) || 0)), bh = f * (b1 - b0);
+    return f > 0 ? `<rect x="${X(j) - step * .3}" y="${b1 - bh}" width="${step * .6}" height="${bh}" rx="1.5" fill="rgba(${M.bar},${(.45 + f * .45).toFixed(2)})"/>` : ''; }).join('') : '';
+  const ticks = ks.map((k, j) => +h.time[k].slice(11, 13) % 6 ? '' :
+    `<text x="${X(j)}" y="${Hh - 6}" text-anchor="middle" font-size="12" fill="rgba(255,255,255,.62)" font-family="sans-serif">${ampm(h.time[k]).replace(' ', '')}</text>
+     <line x1="${X(j)}" y1="${b1 + 3}" x2="${X(j)}" y2="${b1 + 7}" stroke="rgba(255,255,255,.35)"/>`).join('');
+  // a dashed line at the current hour on today's chart
+  const nowJ = i === 0 ? ks.findIndex(k => h.time[k].slice(0, 13) >= data.current.time.slice(0, 13)) : -1;
+  const nowLine = nowJ >= 0 ? `<line x1="${X(nowJ)}" y1="10" x2="${X(nowJ)}" y2="${b1}" stroke="rgba(255,255,255,.4)" stroke-width="1.2" stroke-dasharray="3 4"/>
+    <text x="${X(nowJ)}" y="8" text-anchor="middle" font-size="11" fill="rgba(255,255,255,.7)" font-family="sans-serif">Now</text>` : '';
+  const line = smooth(pts), G = M.grad;
+  const mark = (j, hot) => `<circle cx="${pts[j][0]}" cy="${pts[j][1]}" r="4.5" fill="${hot ? G[0] : G[G.length - 1]}"/>
+    <text class="ml" data-j="${j}" x="${Math.min(W - 16, Math.max(16, pts[j][0]))}" y="${hot ? pts[j][1] - 11 : pts[j][1] + 21}" text-anchor="middle" font-size="${hot ? 15 : 13.5}" font-weight="${hot ? 600 : 400}"
+      fill="${hot ? '#fff' : 'rgba(255,255,255,.8)'}" font-family="sans-serif">${M.lbl(vals[j])}</text>`;
+  const svg = `<svg width="${W}" height="${Hh}" viewBox="0 0 ${W} ${Hh}" aria-hidden="true">
+    <defs>
+      <linearGradient id="dlg" x1="0" x2="0" y1="${top}" y2="${bot}" gradientUnits="userSpaceOnUse">${G.map((c, n2) => `<stop offset="${n2 / (G.length - 1)}" stop-color="${c}"/>`).join('')}</linearGradient>
+      <linearGradient id="dla" x1="0" x2="0" y1="${top}" y2="${b1}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="rgba(${M.area},.32)"/><stop offset="1" stop-color="rgba(255,255,255,0)"/></linearGradient>
+    </defs>
+    ${night}
+    <line x1="0" y1="${b1}" x2="${W}" y2="${b1}" stroke="rgba(255,255,255,.25)"/>
+    ${bars}${ticks}${nowLine}
+    <path d="${line} L${pts[n - 1][0]},${b1} L${pts[0][0]},${b1} Z" fill="url(#dla)"/>
+    <path d="${line}" fill="none" stroke="url(#dlg)" stroke-width="3.5" stroke-linecap="round"/>
+    ${mark(hiJ, true)}${Math.abs(loJ - hiJ) > 1 && vals[loJ] !== vals[hiJ] ? mark(loJ, false) : ''}
+    <line class="vline" x1="0" y1="0" x2="0" y2="${b1}" stroke="rgba(255,255,255,.55)" stroke-width="1.5" stroke-dasharray="4 5"/>
+    <g class="knob"><circle r="15" fill="#fff" stroke="${G[Math.floor(G.length / 2)]}" stroke-width="3"/><text class="kt" y="4.5" text-anchor="middle" font-size="12" font-weight="600" fill="#1d3557" font-family="sans-serif"></text></g>
+  </svg>`;
+  return {svg, ks, pts, raw, vals, padX, step, start: nowJ >= 0 ? nowJ : hiJ};
+}
+function renderDay(i, met = dMet){
+  const d = data.daily, panel = dsheet.querySelector('.dpanel'), M = METRICS[met];
+  dIdx = i; dMet = met;
+  const ks = dayHours(i), vs = ks.map(M.get).filter(v => v != null);
+  const [label, kind] = cond(d.weather_code[i]);
+  const range = met === 'temp' ? `${tf(d.temperature_2m_max[i])}° <span>/ ${tf(d.temperature_2m_min[i])}°</span>`
+    : vs.length ? `<span>${M.lbl(Math.min(...vs))} –</span> ${M.lbl(Math.max(...vs))}${M.u ? `<small> ${M.u()}</small>` : ''}` : '';
+  const legend = (M.legend || [[`linear-gradient(90deg,${[...M.grad].reverse().join(',')})`, M.name]]).concat([['rgba(10,25,70,.35)', 'Night']]);
+  panel.innerHTML = `<div class="grab"></div>
+    <div class="dnav">
+      <button class="round" id="dPrev" aria-label="Previous day"${i === 0 ? ' disabled' : ''}>${chev(true)}</button>
+      <button class="round" id="dNext" aria-label="Next day"${i >= d.time.length - 1 ? ' disabled' : ''}>${chev(false)}</button>
+      <button class="round" id="dClose" aria-label="Close"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="dhead">${met === 'temp' ? icon(kind, true) : `<span class="mi">${ICON[M.icon]}</span>`}
+      <div class="tt"><div class="dn">${met === 'temp' ? longDay(d.time[i], i) : M.name}</div><div class="dc">${met === 'temp' ? label : longDay(d.time[i], i)}</div></div>
+      <div class="rg">${range}</div>
+    </div>
+    <div class="dchips" role="tablist">${Object.entries(METRICS).map(([key, m]) =>
+      `<button role="tab" data-m="${key}" aria-selected="${key === met}" class="${key === met ? 'on' : ''}">${m.short}</button>`).join('')}</div>
+    <div class="dread" id="dread"></div>
+    <div class="dchart" id="dchart"></div>
+    <div class="dlegend">${legend.map(([bg, t]) => `<span><i style="background:${bg}"></i>${t}</span>`).join('')}</div>
+    <div class="dstats">${M.stats(i, ks).map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('')}</div>
+    ${M.about ? `<div class="dabout">${M.about}</div>` : ''}`;
+  const chips = panel.querySelector('.dchips'), on = chips.querySelector('.on');
+  if (on) chips.scrollLeft = on.offsetLeft - chips.clientWidth / 2 + on.offsetWidth / 2;
+  chips.onclick = e => { const b = e.target.closest('button'); if (b && b.dataset.m !== dMet) { const sl = chips.scrollLeft; renderDay(dIdx, b.dataset.m); dsheet.querySelector('.dchips').scrollLeft = sl; } };
+  $('dPrev').onclick = () => dIdx > 0 && renderDay(dIdx - 1);
+  $('dNext').onclick = () => dIdx < d.time.length - 1 && renderDay(dIdx + 1);
+  $('dClose').onclick = closeDay;
+  const host = $('dchart'), C = dayChart(i, Math.max(260, host.clientWidth || 340), M);
+  if (!C) { host.innerHTML = '<div class="msg">No hourly forecast of this for this day.</div>'; $('dread').innerHTML = ''; return; }
+  host.innerHTML = C.svg;
+  const svg = host.querySelector('svg'), knob = svg.querySelector('.knob'), kt = knob.querySelector('.kt'), vl = svg.querySelector('.vline');
+  let cur = -1;
+  const show = j => {
+    j = Math.max(0, Math.min(C.ks.length - 1, j)); if (j === cur) return; cur = j;
+    const k = C.ks[j], [px, py] = C.pts[j], v = C.raw[j];
+    knob.style.transform = `translate(${px}px,${py}px)`; vl.style.transform = `translateX(${px}px)`;
+    kt.textContent = v == null ? '—' : M.lbl(v).replace(/[%°]$/, ''); kt.setAttribute('font-size', kt.textContent.length > 4 ? 10 : 12);
+    svg.querySelectorAll('.ml').forEach(t => t.style.opacity = Math.abs(+t.dataset.j - j) <= 1 ? 0 : '');   // the bead covers it
+    $('dread').innerHTML = `<b>${v == null ? '—' : M.fmt(v)}</b><span class="h">${hr(k)}</span><span class="x">${v == null ? '' : M.extra(k)}</span>`;
+  };
+  const at = e => { const r = svg.getBoundingClientRect(); return Math.round(((e.clientX - r.left) / r.width * svg.viewBox.baseVal.width - C.padX) / C.step); };
+  let drag = false;
+  host.onpointerdown = e => { drag = true; host.classList.add('drag'); host.setPointerCapture(e.pointerId); show(at(e)); };
+  host.onpointermove = e => { if (drag || e.pointerType === 'mouse') show(at(e)); };
+  host.onpointerup = host.onpointercancel = () => { drag = false; host.classList.remove('drag'); };
+  show(C.start);
+}
+function openDay(i, met = 'temp', from = null){
+  if (!data || dsheet) return;
+  dFrom = from;
+  dsheet = document.createElement('div');
+  dsheet.className = 'dsheet';
+  dsheet.innerHTML = '<div class="dpanel" role="dialog" aria-modal="true" aria-label="Hour-by-hour details"></div>';
+  document.body.appendChild(dsheet);
+  document.body.style.overflow = 'hidden';
+  renderDay(i, met);
+  const panel = dsheet.querySelector('.dpanel');
+  dsheet.addEventListener('click', e => { if (e.target === dsheet) closeDay(); });
+  // swipe sideways on the panel (not the chart or the chips) for the next or previous day
+  let tx = 0, ty = 0;
+  panel.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, {passive: true});
+  panel.addEventListener('touchend', e => {
+    if (e.target.closest('.dchart, .dchips')) return;
+    const t = e.changedTouches[0], dx = t.clientX - tx, dy = t.clientY - ty;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > 1.6 * Math.abs(dy)) (dx < 0 ? $('dNext') : $('dPrev')).click();
+    else if (dy > 90 && Math.abs(dy) > 1.6 * Math.abs(dx) && panel.scrollTop <= 0) closeDay();   // pull down to dismiss
+  }, {passive: true});
+  requestAnimationFrame(() => dsheet && dsheet.classList.add('open'));
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const S = springFrames(.5, .74);
+    panel.animate(S.v.map(v => ({transform: `translateY(${((1 - v) * 120).toFixed(2)}px) scale(${(.94 + .06 * v).toFixed(4)})`})), {duration: S.ms});
+  }
+  $('dClose').focus({preventScroll: true});
+}
+function closeDay(){
+  if (!dsheet) return;
+  const el = dsheet, panel = el.querySelector('.dpanel'); dsheet = null;
+  el.classList.remove('open');
+  document.body.style.overflow = '';
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const a = panel.animate([{transform: 'none', opacity: 1}, {transform: 'translateY(60px) scale(.96)', opacity: 0}],
+    {duration: still ? 1 : 240, easing: 'cubic-bezier(.4,0,.8,.6)', fill: 'forwards'});
+  a.onfinish = () => el.remove();
+  const back = dFrom && document.contains(dFrom) ? dFrom : document.querySelector(`.drow[data-day="${dIdx}"]`);
+  back && back.focus({preventScroll: true});
+}
+// a day row opens its temperature; a detail tile opens today's chart of that measure
+const opener = t => t.closest && (t.closest('.drow') || t.closest('.tile[data-a]'));
+const openFrom = el => el.classList.contains('drow') ? openDay(+el.dataset.day, 'temp', el) : openDay(0, TILE_METRIC[el.dataset.a] || 'temp', el);
+document.addEventListener('click', e => { const el = opener(e.target); if (el) openFrom(el); });
+document.addEventListener('keydown', e => {
+  if (dsheet) {
+    if (e.key === 'Escape') closeDay();
+    else if (e.key === 'ArrowLeft') $('dPrev').click();
+    else if (e.key === 'ArrowRight') $('dNext').click();
+    return;
+  }
+  const el = (e.key === 'Enter' || e.key === ' ') && opener(e.target);
+  if (el) { e.preventDefault(); openFrom(el); }
+});
+
 // ---- hourly curve ----
-const COL = 70;
+const COL = 70, COL_WIDE = 54, HALF = 28;               // an hour's column (narrower when unfolded); the half-hour column (unfolded only)
+const WIDE = matchMedia('(min-width:600px)');            // the unfolded phone / wide-screen layout
+let halfHours = store.get('halfHours', true);            // unfolded: show the lighter half-hour points (⋮ menu toggle)
+// a foldable: the Android app checks for a hinge sensor; in a browser only a screen split across a fold gives it away
+// (the device-posture API alone isn't proof: ordinary browsers have it too)
+const isFoldable = () => { try { if (window.AndroidApp && window.AndroidApp.isFoldable) return !!window.AndroidApp.isFoldable(); } catch {}
+  return matchMedia('(horizontal-viewport-segments: 2), (vertical-viewport-segments: 2)').matches; };
+WIDE.addEventListener('change', () => { if (data) render(); });   // folding or unfolding redraws the row
 let hourState = null;
 // As the hourly row scrolls, the temperature circle rides along the curve: it travels from the first column to
-// the last at the same pace as the scroll, lands on the hour under it, shows that hour's temperature and
-// highlights that column.
+// the last at the same pace as the scroll, glides along the line, and lights up the column nearest to it.
 function wireSlider(){
   const sc = document.querySelector('.hscroll'); if (!sc || !hourState) return;
-  const {pts, items} = hourState, n = pts.length;
+  const {pts, items, lefts, widths, W} = hourState, n = pts.length, cx = pts.map(p => p[0]);
   const svg = sc.querySelector('svg'), knob = svg.querySelector('.knob'), hz = svg.querySelector('.hz'), kt = knob.querySelector('.kt');
   const hl = sc.querySelector('.hl'), cols = sc.querySelectorAll('.hcol'), lbs = svg.querySelectorAll('.lb');
-  let cur = -1;
+  let cur = -1, raf = 0;
+  // a point on the drawn curve between point j and j+1 (the same Bezier segment smooth() draws), t from 0 to 1
+  const onCurve = (j, t) => {
+    if (j >= n - 1) return pts[n - 1];
+    const [x0, y0] = pts[Math.max(0, j - 1)], [x1, y1] = pts[j], [x2, y2] = pts[j + 1], [x3, y3] = pts[Math.min(n - 1, j + 2)];
+    const c1x = x1 + (x2 - x0) / 6, c1y = y1 + (y2 - y0) / 6, c2x = x2 - (x3 - x1) / 6, c2y = y2 - (y3 - y1) / 6, u = 1 - t;
+    return [u*u*u*x1 + 3*u*u*t*c1x + 3*u*t*t*c2x + t*t*t*x2, u*u*u*y1 + 3*u*u*t*c1y + 3*u*t*t*c2y + t*t*t*y2];
+  };
+  const a = cx[0], b = W - cx[n - 1];                      // half the first and last column
   const update = () => {
+    raf = 0;
     const max = sc.scrollWidth - sc.clientWidth;
     const f = max > 0 ? Math.min(1, Math.max(0, sc.scrollLeft / max)) : 0;
-    const x = sc.scrollLeft + COL / 2 + f * Math.max(0, sc.clientWidth - COL);
-    const i = Math.max(0, Math.min(n - 1, Math.round((x - COL / 2) / COL)));
+    const x = Math.max(cx[0], Math.min(cx[n - 1], sc.scrollLeft + a + f * Math.max(0, sc.clientWidth - a - b)));
+    // where x falls between two points on the line (columns can differ in width, so search rather than divide)
+    let j = 0; while (j < n - 2 && cx[j + 1] <= x) j++;
+    const t = n > 1 ? Math.min(1, Math.max(0, (x - cx[j]) / (cx[j + 1] - cx[j]))) : 0, pos = j + t;
+    const [px, py] = n > 1 ? onCurve(j, t) : pts[0];
+    knob.style.transform = `translate(${px.toFixed(2)}px,${py.toFixed(2)}px)`;
+    hz.style.transform = `translateY(${py.toFixed(2)}px)`;
+    // labels on the line fade as the bead passes over them rather than blinking off
+    lbs.forEach(l => { const d = Math.abs(cx[+l.dataset.i] - px) / COL; l.style.opacity = d < 1 ? Math.max(0, d * 1.8 - .5).toFixed(2) : ''; });
+    const i = Math.round(pos);
     if (i === cur) return; cur = i;
-    const [px, py] = pts[i];
-    knob.style.transform = `translate(${px}px,${py}px)`;
-    hz.style.transform = `translateY(${py}px)`;
     kt.textContent = Math.round(T(items[i].t));
-    hl.style.transform = `translateX(${i * COL}px)`;
-    cols.forEach((c, j) => c.classList.toggle('sel', j === i));
-    lbs.forEach(l => l.style.opacity = +l.dataset.i === i ? 0 : '');
+    hl.style.transform = `translateX(${lefts[i]}px)`; hl.style.width = widths[i] + 'px';
+    cols.forEach((c, k) => c.classList.toggle('sel', k === i));
   };
-  sc.addEventListener('scroll', update, {passive: true});
+  sc.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(update); }, {passive: true});
   update();
 }
 function smooth(pts){
@@ -1266,20 +1635,34 @@ function hourly(){
     for(const [list,rise] of [[dd.sunrise,true],[dd.sunset,false]]) for(const ev of list)
       if(ev.slice(0,13)===hr && i!==s) items.push({time:ev,t:h.temperature_2m[i],sun:rise?'rise':'set'});
   }
+  // unfolded: a lighter half-hour point between each pair of hours, its temperature read off a smooth curve
+  // through the hours around it (the forecast itself is hourly)
+  if (WIDE.matches && halfHours) {
+    const hrs = items.filter(x => !x.sun), cr = (p0, p1, p2, p3) => (-p0 + 9 * p1 + 9 * p2 - p3) / 16;
+    hrs.slice(0, -1).forEach((x, m) => {
+      if (x.now && +c.time.slice(14, 16) >= 30) return;    // that half hour has already passed
+      const t = cr((hrs[m - 1] || x).t, x.t, hrs[m + 1].t, (hrs[m + 2] || hrs[m + 1]).t);
+      items.push({time: x.time.slice(0, 14) + '30', t, half: true});
+    });
+    items.sort((p, q) => p.now ? -1 : q.now ? 1 : p.time < q.time ? -1 : p.time > q.time ? 1 : 0);
+  }
+  const C=WIDE.matches?COL_WIDE:COL, widths=items.map(x=>x.half?HALF:C), lefts=[]; let W=0; widths.forEach(w=>{lefts.push(W); W+=w;});
   const temps=items.map(x=>T(x.t)), mn=Math.min(...temps), mx=Math.max(...temps), span=Math.max(mx-mn,4);
   const H=112, top=28, bot=86;
-  const pts=items.map((x,i)=>[i*COL+COL/2, bot-(T(x.t)-mn)/span*(bot-top)]);
-  const W=items.length*COL;
-  const maxI=temps.indexOf(mx);
+  const pts=items.map((x,i)=>[lefts[i]+widths[i]/2, bot-(T(x.t)-mn)/span*(bot-top)]);
+  const hrT=items.map(x=>x.half||x.sun?-Infinity:T(x.t)), maxI=hrT.indexOf(Math.max(...hrT));
   const nowY=pts[0][1];
-  hourState = {pts, items};
-  const labels=items.map((x,i)=> x.sun ? '' :
-    `<text class="lb" data-i="${i}" x="${pts[i][0]}" y="${pts[i][1]-11}" text-anchor="middle" font-size="${i===maxI?16:13.5}" font-weight="${i===maxI?600:400}" fill="${i===maxI?'#ffb35c':'rgba(255,255,255,.75)'}" font-family="sans-serif">${Math.round(T(x.t))}°</text>`).join('');
+  hourState = {pts, items, lefts, widths, W};
+  const labels=items.map((x,i)=> x.sun ? '' : x.half
+    ? `<text class="lb" data-i="${i}" x="${pts[i][0]}" y="${pts[i][1]-9}" text-anchor="middle" font-size="10.5" fill="rgba(255,255,255,.45)" font-family="sans-serif">${Math.round(T(x.t))}°</text>`
+    : `<text class="lb" data-i="${i}" x="${pts[i][0]}" y="${pts[i][1]-11}" text-anchor="middle" font-size="${i===maxI?16:13.5}" font-weight="${i===maxI?600:400}" fill="${i===maxI?'#ffb35c':'rgba(255,255,255,.75)'}" font-family="sans-serif">${Math.round(T(x.t))}°</text>`).join('');
+  const halfDots=items.map((x,i)=>x.half?`<circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="2.2" fill="rgba(255,255,255,.6)"/>`:'').join('');
   const svg=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
     <defs><linearGradient id="lg" x1="0" x2="${W}" y1="0" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#a6f0a0"/><stop offset="${Math.min(1,(COL*2.5)/W)}" stop-color="#ffc56b"/><stop offset="1" stop-color="#ffa64d"/></linearGradient></defs>
+      <stop offset="0" stop-color="#a6f0a0"/><stop offset="${Math.min(1,(C*2.5)/W)}" stop-color="#ffc56b"/><stop offset="1" stop-color="#ffa64d"/></linearGradient></defs>
     <line class="hz" x1="0" y1="0" x2="${W}" y2="0" style="transform:translateY(${nowY}px)" stroke="rgba(255,255,255,.45)" stroke-width="1.5" stroke-dasharray="5 5"/>
     <path d="${smooth(pts)}" fill="none" stroke="url(#lg)" stroke-width="3.5" stroke-linecap="round"/>
+    ${halfDots}
     <circle cx="${pts[maxI][0]}" cy="${pts[maxI][1]}" r="5" fill="#ffa64d"/>
     ${labels}
     <g class="knob" style="transform:translate(${pts[0][0]}px,${nowY}px)">
@@ -1289,11 +1672,12 @@ function hourly(){
     </g>
   </svg>`;
   const cols=items.map(x=>{
+    if (x.half) return `<div class="hcol half" style="width:${HALF}px"><span class="hd"></span><div class="pp"></div><div class="hx"></div><div class="hx"></div><div class="t">${clock(x.time)}</div></div>`;
     const ic = x.sun ? sunsetIcon(x.sun==='rise') : icon(cond(x.code)[1], x.day);
     const lbl = x.now ? 'Now' : x.sun ? clock(x.time) : ampm(x.time);
-    return `<div class="hcol${x.now?' now':''}" style="width:${COL}px">${ic}<div class="pp">${!x.sun&&x.pp>=20?x.pp+'%':''}</div>${hourExtras(x)}<div class="t">${lbl}</div></div>`;
+    return `<div class="hcol${x.now?' now':''}" style="width:${C}px">${ic}<div class="pp">${!x.sun&&x.pp>=20?x.pp+'%':''}</div>${hourExtras(x)}<div class="t">${lbl}</div></div>`;
   }).join('');
-  return `<section class="hourly"><div class="hscroll"><div class="hinner" style="width:${W}px"><div class="hl" style="width:${COL}px"></div>${svg}<div class="hrow">${cols}</div></div></div></section>`;
+  return `<section class="hourly"><div class="hscroll"><div class="hinner" style="width:${W}px"><div class="hl" style="width:${widths[0]}px"></div>${svg}<div class="hrow">${cols}</div></div></div></section>`;
 }
 
 // ---- precipitation radar: now, then the next 4 hours (Iowa State Mesonet) ----
@@ -1548,7 +1932,7 @@ const ICON = {
 };
 const SEEN = new Set();   // gauges that already played their animation (a unit switch won't replay it)
 const tile = (label, icon, middle, bottom) =>
-  `<div class="tile anim${SEEN.has(icon) ? ' in' : ''}" data-a="${icon}"><div class="hd"><span class="k">${label}</span>${ICON[icon]}</div><div class="fill">${middle}</div><div>${bottom}</div></div>`;
+  `<div class="tile anim${SEEN.has(icon) ? ' in' : ''}" data-a="${icon}" role="button" tabindex="0" aria-label="${label}: hour-by-hour details"><div class="hd"><span class="k">${label}</span>${ICON[icon]}</div><div class="fill">${middle}</div><div>${bottom}</div></div>`;
 const bar = (frac, grad) => `<div class="bar" style="background:${grad}"><i style="--x:${clamp01(frac) * 100}%"></i></div>`;
 
 function windDial(speedKmh, fromDeg){
@@ -1663,11 +2047,14 @@ let opened = false;
 function render(){
   if(!data) return;
   const c=data.current,d=data.daily,h=data.hourly;
-  const [label0,kind]=cond(c.weather_code), day=!!c.is_day, label=nightWord(label0, day);
+  const [label0,kind]=cond(c.weather_code), day=!!c.is_day;
+  // a cloudless sky: weather code 0, or clear with almost no cloud cover. It reads "Clear and sunny" and no clouds are drawn.
+  const bare = c.weather_code === 0 || kind === 'clear' && c.cloud_cover != null && c.cloud_cover <= 5;
+  const label = nightWord(bare ? 'Clear and sunny' : label0, day);
   try { const w = places[0] || place; window.AndroidApp && window.AndroidApp.savePrefs(w.name, w.lat, w.lon, unit); } catch {}
-  if (skyPreview) showPreview(); else scene(kind,day);
+  if (skyPreview) showPreview(); else scene(kind,day,bare);
   const uv = c.uv_index ?? 0;
-  const days=d.time.map((t,i)=>`<div class="drow"><div class="d">${md(t)}</div><div class="w">${dayName(t,i)}</div><div class="ic">${icon(cond(d.weather_code[i])[1],true)}<span class="pp">${d.precipitation_probability_max[i]>=20?d.precipitation_probability_max[i]+'%':''}</span></div><div class="lo">${tf(d.temperature_2m_min[i])}°</div><div class="hi">${tf(d.temperature_2m_max[i])}°</div></div>`).join('');
+  const days=d.time.map((t,i)=>`<div class="drow" data-day="${i}" role="button" tabindex="0" aria-label="${dayName(t,i)}: hour-by-hour details"><div class="d">${md(t)}</div><div class="w">${dayName(t,i)}</div><div class="ic">${icon(cond(d.weather_code[i])[1],true)}<span class="pp">${d.precipitation_probability_max[i]>=20?d.precipitation_probability_max[i]+'%':''}</span></div><div class="lo">${tf(d.temperature_2m_min[i])}°</div><div class="hi">${tf(d.temperature_2m_max[i])}°</div></div>`).join('');
   const ih = h.time.findIndex(t=>t.slice(0,13)>=c.time.slice(0,13));
   const vi = h.visibility?.[ih];
   // pressure over the next 3 hours: more than 1 hPa up or down counts as rising or falling
@@ -1750,7 +2137,7 @@ function updateDock(){
 let sx = 0, sy = 0, st = 0, skipSwipe = false;
 document.addEventListener('touchstart', e => {
   const t = e.touches[0]; sx = t.clientX; sy = t.clientY; st = Date.now();
-  skipSwipe = !!e.target.closest('.hscroll, .cities, .dock');
+  skipSwipe = !!e.target.closest('.hscroll, .cities, .dock, .dsheet');
 }, {passive: true});
 document.addEventListener('touchend', e => {
   if (skipSwipe || !$('cities').hidden || !$('rv').classList.contains('parked') && !$('rv').hidden || !$('life').hidden || places.length < 2) return;
@@ -1759,36 +2146,47 @@ document.addEventListener('touchend', e => {
 }, {passive: true});
 $('refreshBtn').onclick = () => load();
 
-// elastic glass touch on panels: they lean toward the finger, spring back on release, with a light spot
+// droplet shimmer on panels: a ripple and sheen across the whole glass, and a jelly give and spring-back
 (() => {
   const SEL = '.tile, .daily, .radar, .sun, .ccard, .csearch, .chip, .hourly';
-  let cur = null, spot = null, x0 = 0, y0 = 0;
+  let cur = null, fx = null, x0 = 0, y0 = 0;
   const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const release = () => {
+  // the panel gives a little under the finger, then springs back with a jelly wobble (added on top of any other motion)
+  const squish = (el, frames, ms, ease) => { if (still()) return;
+    el.getAnimations().forEach(a => { if (a.id === 'drop') a.cancel(); });
+    const a = el.animate(frames, {duration: ms, easing: ease, fill: 'forwards', composite: 'add', id: 'drop'});
+    return a; };
+  const release = (e, tapped) => {
     if (!cur) return;
     const el = cur; cur = null;
     el.classList.remove('et-on', 'touching');
-    if (spot) { const s = spot; spot = null; s.classList.remove('on'); s.classList.add('off'); setTimeout(() => s.remove(), 460); }
+    if (!el.classList.contains('hourly')) {
+      const a = squish(el, tapped
+        ? [{transform: 'scale(.975)'}, {transform: 'scale(1.012)', offset: .38}, {transform: 'scale(.996)', offset: .68}, {transform: 'none'}]
+        : [{transform: 'scale(.975)'}, {transform: 'none'}], tapped ? 560 : 260, 'cubic-bezier(.3,.7,.4,1)');
+      if (a) a.onfinish = () => a.cancel();
+    }
+    if (fx) { const f = fx; fx = null; f.classList.remove('on'); f.classList.add('off'); setTimeout(() => f.remove(), 1100); }
   };
   document.addEventListener('pointerdown', e => {
     const el = e.target.closest(SEL);
     if (!el || e.target.closest('.round, .pill, .del') || $('cities').classList.contains('editing') && el.classList.contains('ccard')) return;
     release(); cur = el; x0 = e.clientX; y0 = e.clientY;
-    const host = el.classList.contains('hourly') ? el.querySelector('.hinner') || el : el, r = host.getBoundingClientRect();
-    if (el.classList.contains('hourly')) el.classList.add('touching');
-    else el.classList.add('et-on');                                    // shimmer: brighten, glow under the finger, no movement
-    spot = document.createElement('span'); spot.className = 'et-spot';
-    spot.style.left = (e.clientX - r.left) + 'px'; spot.style.top = (e.clientY - r.top) + 'px';
-    host.appendChild(spot); requestAnimationFrame(() => spot && spot.classList.add('on'));
+    if (el.classList.contains('hourly')) { el.classList.add('touching'); return; }   // the hourly row has its own glass bead
+    el.classList.add('et-on');
+    squish(el, [{transform: 'none'}, {transform: 'scale(.975)'}], 160, 'cubic-bezier(.3,.6,.4,1)');
+    const r = el.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    const reach = 2 * Math.hypot(Math.max(x, r.width - x), Math.max(y, r.height - y)) * 1.05;   // the ripple reaches every corner
+    fx = document.createElement('span'); fx.className = 'et-fx';
+    fx.innerHTML = ['', ' two'].map(c => `<i class="et-ring${c}" style="left:${x}px;top:${y}px;width:${reach}px;height:${reach}px"></i>`).join('');
+    el.appendChild(fx); requestAnimationFrame(() => fx && fx.classList.add('on'));
   }, true);
   document.addEventListener('pointermove', e => {
-    if (!cur || !spot) return;
-    if (Math.hypot(e.clientX - x0, e.clientY - y0) > 12 && !cur.classList.contains('hourly')) { release(); return; }   // a scroll, not a press
-    const host = spot.parentNode, r = host.getBoundingClientRect();
-    spot.style.left = (e.clientX - r.left) + 'px'; spot.style.top = (e.clientY - r.top) + 'px';
+    if (!cur || cur.classList.contains('hourly')) return;
+    if (Math.hypot(e.clientX - x0, e.clientY - y0) > 12) release(e, false);   // a scroll, not a press
   }, true);
-  document.addEventListener('pointerup', release, true);
-  document.addEventListener('pointercancel', release, true);
+  document.addEventListener('pointerup', e => release(e, true), true);
+  document.addEventListener('pointercancel', e => release(e, false), true);
   // the hourly row scrolls natively, which cancels the pointer: keep the glass bead swollen while it moves
   let hT = 0;
   document.addEventListener('scroll', e => {
@@ -1797,19 +2195,89 @@ $('refreshBtn').onclick = () => load();
   }, true);
 })();
 
-// liquid glass press on every button
+// liquid glass press on every button, and a water-droplet pull: drag a pressed button and it stretches after your
+// finger with growing resistance, thinning as it lengthens. Let go and it springs home with a wobble; pull too far
+// and it breaks free, snapping back without pressing.
 (() => {
-  const SEL = '.round, .pill, .cbtn, .cgroup button';
-  let cur = null;
-  const up = () => { if (!cur) return; const b = cur; cur = null; b.classList.remove('lg-press'); b.classList.remove('lg-release'); void b.offsetWidth; b.classList.add('lg-release'); setTimeout(() => b.classList.remove('lg-release'), 600); };
-  document.addEventListener('pointerdown', e => { const b = e.target.closest(SEL); if (!b || b.id === 'moreBtn') return; cur = b; b.classList.add('lg-press'); }, true);
-  document.addEventListener('pointerup', up, true);
-  document.addEventListener('pointercancel', up, true);
+  const SEL = '.round, .pill, .cbtn, .cgroup button';               // glass buttons: they swell into a droplet when pressed
+  const R = 22, BREAK = 84;                                         // resistance (px) and how far a pull goes before it lets go
+  let cur = null, x0 = 0, y0 = 0, pulled = 0, glass = false;
+  const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // how much a button stretches: small round buttons the most, wide ones (list rows, menu items) only a touch
+  const give = b => .11 * Math.min(1, 52 / Math.max(b.offsetWidth || 52, b.offsetHeight || 52));
+  // the droplet's shape for a pull of (dx, dy), scaled by k (1 = full pull, 0 = at rest; past 1 or below 0 it overshoots)
+  const shape = (dx, dy, k, g, base = 1) => {
+    const d = Math.hypot(dx, dy); if (!d) return `scale(${base})`;
+    const eff = R * (1 - Math.exp(-d / R)), a = Math.atan2(dy, dx) * 180 / Math.PI;
+    const ox = dx / d * eff * .3 * k, oy = dy / d * eff * .3 * k, st = 1 + eff / R * g * k;
+    return `translate(${ox.toFixed(2)}px,${oy.toFixed(2)}px) rotate(${a.toFixed(1)}deg) scale(${st.toFixed(4)},${(1 / Math.sqrt(Math.max(.5, st))).toFixed(4)}) rotate(${(-a).toFixed(1)}deg)${base !== 1 ? ` scale(${base})` : ''}`;
+  };
+  // what's inside (icon or words) undoes the stretch, so it rides along with the glass but keeps its own shape
+  const unshape = (dx, dy, k, g) => {
+    const d = Math.hypot(dx, dy); if (!d) return 'none';
+    const eff = R * (1 - Math.exp(-d / R)), a = Math.atan2(dy, dx) * 180 / Math.PI, st = 1 + eff / R * g * k;
+    return `rotate(${a.toFixed(1)}deg) scale(${(1 / st).toFixed(4)},${Math.sqrt(Math.max(.5, st)).toFixed(4)}) rotate(${(-a).toFixed(1)}deg)`;
+  };
+  // bare words in a button can't be transformed, so while it's pulled they sit in a wrapper that can; unwrapped after
+  const wrapText = b => { [...b.childNodes].forEach(n => { if (n.nodeType === 3 && n.nodeValue.trim()) {
+    const w = document.createElement('span'); w.className = 'pt'; n.replaceWith(w); w.appendChild(n); } }); };
+  const unwrapText = b => b.querySelectorAll(':scope > .pt').forEach(w => w.replaceWith(document.createTextNode(w.textContent)));
+  const springHome = (b, dx, dy, g, wasGlass) => {
+    if (still()) { unwrapText(b); return; }
+    const S = springFrames(.4, .6);                                  // a little overshoot and one soft wobble, like water
+    const a = b.animate(S.v.map(v => ({transform: shape(dx, dy, 1 - v, g, wasGlass ? 1 + .16 * Math.max(0, 1 - v) : 1)})), {duration: S.ms, id: 'pull'});
+    a.onfinish = () => { a.cancel(); unwrapText(b); };
+    [...b.children].forEach(c => { const ca = c.animate(S.v.map(v => ({transform: unshape(dx, dy, 1 - v, g)})), {duration: S.ms, id: 'pull'}); ca.onfinish = () => ca.cancel(); });
+  };
+  const end = (e, cancelled) => {
+    if (!cur) return;
+    const b = cur, wasGlass = glass; cur = null;
+    const dx = +b.dataset.pdx || 0, dy = +b.dataset.pdy || 0;
+    b.classList.remove('lg-press', 'lg-release', 'pulling'); b.style.removeProperty('--pull'); b.style.removeProperty('--unpull');
+    // the ⋮ button turns into the menu when it's let go over: the menu takes it from here, so it just settles
+    const opening = b.id === 'moreBtn' && !cancelled && e && b.contains(document.elementFromPoint(e.clientX, e.clientY));
+    if (pulled > 6 && !opening) springHome(b, dx, dy, b._give, wasGlass);   // a real pull: spring back from where it was stretched
+    else { unwrapText(b); if (wasGlass) { void b.offsetWidth; b.classList.add('lg-release'); setTimeout(() => b.classList.remove('lg-release'), 600); } }
+    pulled = 0;
+  };
+  document.addEventListener('pointerdown', e => {
+    const b = e.target.closest && e.target.closest('button'); if (!b || b.disabled) return;
+    b.getAnimations({subtree: true}).forEach(a => { if (a.id === 'pull') a.cancel(); });
+    unwrapText(b);
+    cur = b; x0 = e.clientX; y0 = e.clientY; pulled = 0; b._give = give(b);
+    glass = b.matches(SEL) && b.id !== 'moreBtn';                   // the ⋮ button has its own droplet when it opens
+    b.dataset.pdx = b.dataset.pdy = 0;
+    if (glass) b.classList.add('lg-press');
+  }, true);
+  document.addEventListener('pointermove', e => {
+    if (!cur) return;
+    const b = cur, dx = e.clientX - x0, dy = e.clientY - y0, d = Math.hypot(dx, dy);
+    if (b.id === 'pager') return;                                    // the pager has its own hold-and-scrub gesture
+    pulled = Math.max(pulled, d);
+    if (d > BREAK) {                                                 // pulled past breaking: it lets go and the press is called off
+      b._snapped = Date.now(); end(e, true); return;
+    }
+    b.dataset.pdx = dx; b.dataset.pdy = dy;
+    if (d > 3) {
+      if (!b.classList.contains('pulling')) { wrapText(b); b.classList.add('pulling'); }
+      b.style.setProperty('--pull', shape(dx, dy, 1, b._give)); b.style.setProperty('--unpull', unshape(dx, dy, 1, b._give));
+    }
+  }, true);
+  document.addEventListener('pointerup', e => end(e, false), true);
+  document.addEventListener('pointercancel', e => end(e, true), true);
+  // a button that broke free doesn't fire its click
+  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button');
+    if (b && b._snapped && Date.now() - b._snapped < 1200) { b._snapped = 0; e.stopPropagation(); e.preventDefault(); } }, true);
 })();
 
 // ⋮ menu: the button swells into a glass droplet, then flows open into the menu
 const gm = $('gmenu'), gs = $('gscrim');
-function setMenuText(){ $('mUnit').innerHTML = `Show in °${unit === 'F' ? 'C' : 'F'} <small>now °${unit}</small>`; }
+function setMenuText(){
+  $('mUnit').innerHTML = `Show in °${unit === 'F' ? 'C' : 'F'} <small>now °${unit}</small>`;
+  // half-hour detail is an unfolded-screen option: offered when unfolded, or on a foldable even while it's folded
+  $('mHalf').hidden = !(WIDE.matches || isFoldable());
+  $('mHalf').innerHTML = `Half-hour detail <small>${halfHours ? 'On' : 'Off'}</small>`;
+}
 // The ⋮ button turns into the menu like vivo's: the menu itself is the droplet. Its visible shape (a clip) starts
 // as the button's circle, squeezes, drifts down-left while swelling into a rounded blob, then fills out into the
 // menu (top edge level with the button's top) as the blue tint fades and the text sharpens. Closing reverses it,
@@ -1817,6 +2285,11 @@ function setMenuText(){ $('mUnit').innerHTML = `Show in °${unit === 'F' ? 'C' :
 // clip/transform/opacity animations are drawn by the GPU at the screen's full refresh rate.
 let menuR = null, menuAnim = [];
 const MW = 200, TINT = 'rgba(46,82,170,.42)';
+// the glass of the menu and of the ⋮ button, written with matching parts so one can blend into the other: while the
+// droplet travels its frosting and rim turn into the button's, so the hand-over at either end is seamless
+const GLASS_BF = 'blur(22px) saturate(1.7) brightness(1.08)', BTN_BF = 'blur(10px) saturate(1) brightness(1)';
+const GLASS_SH = 'inset 0 0 0 1.2px rgba(255,255,255,.85), inset 0 1px 10px rgba(255,255,255,.45), 0 14px 40px rgba(10,30,70,.28)';
+const BTN_SH = 'inset 0 0 0 0 rgba(255,255,255,0), inset 0 1px 0 rgba(255,255,255,.25), 0 0 0 rgba(10,30,70,0)';
 function menuGeometry(){
   const r = $('moreBtn').getBoundingClientRect(), H = gm.querySelector('.items').scrollHeight;
   const left = r.right - MW, top = r.top - 2;
@@ -1843,14 +2316,15 @@ function morph(g, closing){
   const glide = 'cubic-bezier(.32,.72,.24,1)';
   if (!closing) {
     d = 320;
-    F = [K(0, button, glide, {backgroundColor: 'rgba(0,0,0,0)'}), K(1, full, null, {backgroundColor: glass})];
-    tintF = [{offset: 0, opacity: 1, backgroundColor: btnC}, {offset: .35, opacity: 1, backgroundColor: TINT}, {offset: 1, opacity: 0, backgroundColor: TINT}];
+    F = [K(0, button, glide, {backgroundColor: 'rgba(0,0,0,0)', backdropFilter: BTN_BF, boxShadow: BTN_SH}), K(1, full, null, {backgroundColor: glass, backdropFilter: GLASS_BF, boxShadow: GLASS_SH})];
+    tintF = [{offset: 0, opacity: 1, backgroundColor: btnC}, {offset: .15, opacity: 1, backgroundColor: btnC}, {offset: .4, opacity: 1, backgroundColor: TINT}, {offset: 1, opacity: 0, backgroundColor: TINT}];
     iconF = [{offset: 0, opacity: 1, transform: 'none'}, {offset: .3, opacity: 0, transform: 'none'}, {offset: 1, opacity: 0, transform: 'none'}];
     itemF = [{offset: 0, opacity: 0, filter: 'blur(6px)'}, {offset: .3, opacity: 0, filter: 'blur(6px)'}, {offset: 1, opacity: 1, filter: 'blur(0px)'}];
   } else {
     d = 340;
-    F = [K(0, full, glide, {backgroundColor: glass}), K(1, button, null, {backgroundColor: 'rgba(0,0,0,0)'})];
-    tintF = [{offset: 0, opacity: 0, backgroundColor: TINT}, {offset: .65, opacity: 1, backgroundColor: TINT}, {offset: 1, opacity: 1, backgroundColor: btnC}];
+    F = [K(0, full, glide, {backgroundColor: glass, backdropFilter: GLASS_BF, boxShadow: GLASS_SH}), K(1, button, null, {backgroundColor: 'rgba(0,0,0,0)', backdropFilter: BTN_BF, boxShadow: BTN_SH})];
+    // the tint arrives at the button's own blue a little before landing and holds it, so the colors match at the swap
+    tintF = [{offset: 0, opacity: 0, backgroundColor: TINT}, {offset: .5, opacity: 1, backgroundColor: TINT}, {offset: .85, opacity: 1, backgroundColor: btnC}, {offset: 1, opacity: 1, backgroundColor: btnC}];
     iconF = [{offset: 0, opacity: 0, transform: 'none'}, {offset: .7, opacity: 0, transform: 'none'}, {offset: 1, opacity: 1, transform: 'none'}];
     itemF = [{offset: 0, opacity: 1, filter: 'blur(0px)'}, {offset: .5, opacity: 0, filter: 'blur(6px)'}, {offset: 1, opacity: 0, filter: 'blur(6px)'}];
   }
@@ -1888,14 +2362,14 @@ function closeMenu(after){
   const g = menuR || menuGeometry();
   gm.classList.remove('open');
   const landing = morph(g, true);
-  setTimeout(() => {                                                   // land: swap to the real button a beat early and bounce it
-    const btn = $('moreBtn');
-    btn.style.visibility = ''; gm.style.visibility = 'hidden';
-    btn.animate([{transform: 'scale(1.1,.92)'}, {transform: 'scale(.95,1.05)', offset: .4}, {transform: 'scale(1.02,.99)', offset: .7}, {transform: 'none'}],
-      {duration: 360, easing: 'cubic-bezier(.3,.7,.4,1)'});
-  }, 280);
   landing.then(() => {
-    gm.style.visibility = '';
+    // land: the droplet now matches the button exactly in size, place and color, so swap them in the same frame,
+    // then give the button a soft landing wobble that starts from rest (no jump)
+    const btn = $('moreBtn');
+    btn.style.visibility = '';
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches)
+      btn.animate([{transform: 'none'}, {transform: 'scale(1.06,.95)', offset: .3}, {transform: 'scale(.98,1.02)', offset: .65}, {transform: 'none'}],
+        {duration: 380, easing: 'cubic-bezier(.3,.7,.4,1)'});
     gm.hidden = true; gs.hidden = true;
     menuAnim.forEach(a => a.cancel()); menuAnim = [];
     after && after();
@@ -1905,6 +2379,8 @@ $('moreBtn').onclick = () => gm.hidden ? openMenu() : closeMenu();
 gs.onclick = () => closeMenu();
 $('mUnit').onclick = () => closeMenu(() => { unit = unit === 'F' ? 'C' : 'F'; store.set('unit', unit); render(); });
 $('mCities').onclick = () => closeMenu(openCities);
+$('mHalf').onclick = () => closeMenu(() => { halfHours = !halfHours; store.set('halfHours', halfHours); if (data) render();
+  skyToast(`Half-hour detail ${halfHours ? 'on' : 'off'}${halfHours && !WIDE.matches ? ' · shows when unfolded' : ''}`); });
 $('mShare').onclick = () => closeMenu(() => {
   if (!data || !place) return;
   const c = data.current, d = data.daily, [label] = cond(c.weather_code);
@@ -1912,6 +2388,78 @@ $('mShare').onclick = () => closeMenu(() => {
   try { if (window.AndroidApp && window.AndroidApp.share) { window.AndroidApp.share(text); return; } } catch {}
   if (navigator.share) navigator.share({text}).catch(() => {});
 });
+
+// ---- updates: compare this app's version with the newest release on GitHub ----
+const REPO = 'JacksonJones2003/skyline-weather', RELEASES = `https://github.com/${REPO}/releases`;
+const appVer = () => { try { return (window.AndroidApp && window.AndroidApp.appVersion && window.AndroidApp.appVersion()) || null; } catch { return null; } };
+const verCmp = (a, b) => { const x = String(a).replace(/^v/, '').split('.').map(Number), y = String(b).replace(/^v/, '').split('.').map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0 ? 1 : -1; } return 0; };
+const openOut = url => { try { if (window.AndroidApp && window.AndroidApp.openUrl) { window.AndroidApp.openUrl(url); return; } } catch {} window.open(url, '_blank', 'noopener'); };
+// release notes are Markdown: keep the prose, drop code blocks and the heading that repeats the title
+const notesText = md => String(md || '').replace(/```[\s\S]*?```/g, '').replace(/^#{1,6} .*$/gm, m => /^# /.test(m) ? '' : m.replace(/^#+ /, ''))
+  .replace(/[*_`]/g, '').replace(/\n{3,}/g, '\n\n').trim()
+  .replace(/([^\n])\n(?![\n\-•]|\d+\. )/g, '$1 ');   // rejoin lines wrapped in the source, keep paragraphs and lists
+let usheet = null, latestRel = null;
+function setUpdateItem(){
+  const v = appVer(), newer = latestRel && v && verCmp(latestRel.tag_name, v) > 0;
+  $('mUpdate').innerHTML = newer ? `Update to ${esc(latestRel.tag_name)} <small class="new">new</small>` : `Check for updates${v ? ` <small>v${esc(v)}</small>` : ''}`;
+}
+async function checkUpdate(manual){
+  if (manual) skyToast('Checking for updates…');
+  let rel;
+  try {
+    const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {headers: {Accept: 'application/vnd.github+json'}});
+    if (!r.ok) throw new Error(r.status);
+    rel = await r.json();
+  } catch { if (manual) skyToast('Couldn’t reach GitHub. Try again later.'); return; }
+  latestRel = rel; store.set('updCheck', Date.now()); setUpdateItem();
+  const v = appVer(), newer = v ? verCmp(rel.tag_name, v) > 0 : null;
+  if (newer === false) { if (manual) skyToast(`You’re up to date · v${v}`); return; }
+  // on its own the app offers each new version once; from the menu it always shows
+  if (manual || (newer && store.get('updSkip', '') !== rel.tag_name)) openUpdate(rel, newer);
+}
+function openUpdate(rel, newer){
+  if (usheet) return;
+  const apk = (rel.assets || []).find(a => /\.apk$/i.test(a.name)), v = appVer();
+  const when = rel.published_at ? new Date(rel.published_at).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) : '';
+  usheet = document.createElement('div'); usheet.className = 'dsheet';
+  usheet.innerHTML = `<div class="dpanel upanel" role="dialog" aria-modal="true" aria-label="App update">
+    <div class="grab"></div>
+    <div class="dhead"><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></span>
+      <div class="tt"><div class="dn">${newer ? 'Update available' : 'Latest version'}</div><div class="dc">${esc(rel.name || rel.tag_name)}${when ? ` · ${when}` : ''}</div></div></div>
+    <div class="uvers">${v ? `<span>v${esc(v)}</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>` : ''}<b>${esc(rel.tag_name)}</b></div>
+    <div class="unotes">${esc(notesText(rel.body)) || 'No release notes.'}</div>
+    <div class="ubtns">
+      ${apk && newer !== false ? `<button class="ubtn main" id="uGet">Download update</button>` : ''}
+      <button class="ubtn" id="uView">View on GitHub</button>
+      <button class="ubtn" id="uLater">${newer ? 'Later' : 'Close'}</button>
+    </div>
+    ${apk && newer !== false ? `<div class="dabout">The update downloads in your browser; open it to install. Android may ask you to allow installs from your browser the first time.</div>` : ''}
+  </div>`;
+  document.body.appendChild(usheet);
+  const panel = usheet.querySelector('.dpanel');
+  usheet.addEventListener('click', e => { if (e.target === usheet) closeUpdate(); });
+  if ($('uGet')) $('uGet').onclick = () => { openOut(apk.browser_download_url); closeUpdate(); };
+  $('uView').onclick = () => openOut(rel.html_url || RELEASES);
+  $('uLater').onclick = () => { if (newer) store.set('updSkip', rel.tag_name); closeUpdate(); };
+  requestAnimationFrame(() => usheet && usheet.classList.add('open'));
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const S = springFrames(.5, .74);
+    panel.animate(S.v.map(v => ({transform: `translateY(${((1 - v) * 120).toFixed(2)}px) scale(${(.94 + .06 * v).toFixed(4)})`})), {duration: S.ms});
+  }
+}
+function closeUpdate(){
+  if (!usheet) return;
+  const el = usheet; usheet = null; el.classList.remove('open');
+  const a = el.querySelector('.dpanel').animate([{transform: 'none', opacity: 1}, {transform: 'translateY(60px) scale(.96)', opacity: 0}],
+    {duration: 240, easing: 'cubic-bezier(.4,0,.8,.6)', fill: 'forwards'});
+  a.onfinish = () => el.remove();
+}
+document.addEventListener('keydown', e => { if (usheet && e.key === 'Escape') closeUpdate(); });
+$('mUpdate').onclick = () => closeMenu(() => checkUpdate(true));
+setUpdateItem();
+// in the Android app, look on its own at most every 12 hours, a little after the forecast is up
+if (appVer() && Date.now() - store.get('updCheck', 0) > 12 * 3600 * 1000) setTimeout(() => checkUpdate(false), 4000);
 
 // pull down from the top of the page to refresh, the way the system weather app does
 (() => {
@@ -2249,7 +2797,7 @@ function removePlace(i){
   idx = -1; goTo(ni, 0); renderCards();
 }
 const setPlace = addPlace, openSheet = openCities, closeSheet = closeCities;
-window.__closeSheet = () => { if (!$('rv').classList.contains('parked') && !$('rv').hidden) { closeRadar(); return 1; } if (!$('life').hidden) { closeLife(); return 1; } if (!gm.hidden) { closeMenu(); return 1; } if (!$('cities').hidden && places.length) { closeCities(); return 1; } return 0; };
+window.__closeSheet = () => { if (usheet) { closeUpdate(); return 1; } if (dsheet) { closeDay(); return 1; } if (!$('rv').classList.contains('parked') && !$('rv').hidden) { closeRadar(); return 1; } if (!$('life').hidden) { closeLife(); return 1; } if (!gm.hidden) { closeMenu(); return 1; } if (!$('cities').hidden && places.length) { closeCities(); return 1; } return 0; };
 $('placeBtn').onclick = openCities;
 $('placeName').onclick = () => { if (place) load(); else openCities(); };
 $('citiesBack').onclick = closeCities;

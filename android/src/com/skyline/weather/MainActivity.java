@@ -286,6 +286,21 @@ public class MainActivity extends Activity {
                 startActivity(android.content.Intent.createChooser(i, "Share weather"));
             });
         }
+        // foldable phones report a hinge-angle sensor; the page offers its unfolded-only options on them even while folded
+        @JavascriptInterface public boolean isFoldable() {
+            try { return getPackageManager().hasSystemFeature("android.hardware.sensor.hinge_angle"); } catch (Exception e) { return false; }
+        }
+        // the page's update check compares this with the newest GitHub release
+        @JavascriptInterface public String appVersion() {
+            try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception e) { return ""; }
+        }
+        // opens a download or release page in the browser; only this app's own GitHub releases are allowed
+        @JavascriptInterface public void openUrl(String url) {
+            if (url == null || !url.startsWith("https://github.com/JacksonJones2003/skyline-weather/")) return;
+            runOnUiThread(() -> {
+                try { startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))); } catch (Exception ignored) {}
+            });
+        }
         @JavascriptInterface public void setSky(String a, String b) {
             runOnUiThread(() -> { try { MainActivity.this.setSky(a, b); } catch (Exception ignored) {} });
         }
