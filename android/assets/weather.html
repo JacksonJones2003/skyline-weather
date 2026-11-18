@@ -172,12 +172,14 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 .dmore svg{transition:rotate .25s}
 .drow .lo{text-align:right;color:rgba(255,255,255,.62);font-variant-numeric:tabular-nums}
 .drow .hi{text-align:right;font-variant-numeric:tabular-nums}
-.drow{cursor:pointer;border-radius:12px;-webkit-tap-highlight-color:transparent}
+.drow{cursor:pointer;border-radius:12px;-webkit-tap-highlight-color:transparent;transition:background .45s ease-out}
+/* a tapped day lights up on its own (the whole list doesn't ripple: it's tall, and the day's popup is opening) */
+.drow.tap{background:rgba(255,255,255,.13);transition:none}
 .drow:focus-visible{outline:2px solid #fff;outline-offset:2px}
 
 /* ---- day detail: tap a day for its hour-by-hour temperature line ---- */
 .dsheet{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;
-  background:rgba(10,30,60,.38);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;transition:opacity .28s;
+  background:rgba(10,30,60,.46);opacity:0;transition:opacity .28s;   /* a plain dim behind the popup: blurring the whole page as well was too heavy for the phone */
   padding:16px max(12px,var(--sar,env(safe-area-inset-right,0px))) max(12px,env(safe-area-inset-bottom,0px)) max(12px,var(--sal,env(safe-area-inset-left,0px)))}
 .dsheet.open{opacity:1}
 @media (min-width:700px){.dsheet{align-items:center}}
@@ -445,7 +447,7 @@ input{-webkit-user-select:text;user-select:text}
 .et-ring{position:absolute;border-radius:50%;translate:-50% -50%;scale:.04;opacity:0;
   background:radial-gradient(circle,rgba(255,255,255,0) 54%,rgba(255,255,255,.2) 63%,rgba(225,245,255,.34) 67%,rgba(255,255,255,.1) 70%,rgba(255,255,255,0) 74%);
   animation:etRing .9s cubic-bezier(.2,.7,.3,1) forwards}
-.et-ring.two{animation-delay:.13s;animation-duration:1.05s;filter:blur(1px)}
+.et-ring.two{animation-delay:.13s;animation-duration:1.05s}
 @keyframes etRing{0%{scale:.04;opacity:0}12%{opacity:1}100%{scale:1;opacity:0}}
 /* a liquid sheen sliding across the panel */
 .et-fx::before{content:"";position:absolute;inset:-20% -60%;
@@ -477,6 +479,9 @@ input{-webkit-user-select:text;user-select:text}
 .pulling > :is(small,b,strong,em,i){display:inline-block}
 .pulling{transform:var(--pull);transition:background .25s,box-shadow .25s,backdrop-filter .25s!important;will-change:transform;z-index:2}
 .round,.ubtn,.cbtn,.cgroup button{touch-action:none}
+/* frosted glass buttons are clipped to their own outline, so the phone can't draw their blur as a square mid-animation */
+.round{clip-path:inset(0 round 50%)}
+.pill{clip-path:inset(0 round 22px)}
 @keyframes lgJelly{0%{transform:scale(1.16)}30%{transform:scale(.92,1.06)}55%{transform:scale(1.05,.96)}78%{transform:scale(.99,1.01)}100%{transform:none}}
 
 /* ---- glass menu that grows out of the ⋮ button ---- */
@@ -1304,8 +1309,9 @@ document.addEventListener('click', e => {
     box.classList.remove('all'); const h1 = box.offsetHeight, after = tops(); box.classList.add('all');
     const dys = after.map((t, n) => t - before[n]), D = h0 - h1;
     const top = box.getBoundingClientRect().top;
+    b.firstChild.textContent = 'More';                     // the label changes as the list starts to close, not after
     const done = () => {
-      box.classList.remove('all'); b.firstChild.textContent = 'More';
+      box.classList.remove('all');
       extra().forEach(r => r.getAnimations().forEach(a => a.cancel()));
       finish();                                              // the real layout now matches the last frame exactly
       if (top < 0) box.scrollIntoView({block: 'start', behavior: 'smooth'});
@@ -1519,6 +1525,19 @@ function renderDay(i, met = dMet){
   host.onpointerup = host.onpointercancel = () => { drag = false; host.classList.remove('drag'); };
   show(C.start);
 }
+// A popup is drawn once while invisible, and only slides in on the frame after: on the phone, starting the slide on
+// the same frame the glass was created showed an empty pane for a moment before its contents appeared.
+function enter(sheet, panel){
+  panel.style.opacity = '0';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (!sheet.isConnected) return;
+    panel.style.opacity = ''; sheet.classList.add('open');
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const S = springFrames(.5, .74);
+      panel.animate(S.v.map(v => ({transform: `translateY(${((1 - v) * 120).toFixed(2)}px) scale(${(.94 + .06 * v).toFixed(4)})`, opacity: Math.min(1, v * 4)})), {duration: S.ms});
+    }
+  }));
+}
 function openDay(i, met = 'temp', from = null){
   if (!data || dsheet) return;
   dFrom = from;
@@ -1539,11 +1558,7 @@ function openDay(i, met = 'temp', from = null){
     if (Math.abs(dx) > 60 && Math.abs(dx) > 1.6 * Math.abs(dy)) (dx < 0 ? $('dNext') : $('dPrev')).click();
     else if (dy > 90 && Math.abs(dy) > 1.6 * Math.abs(dx) && panel.scrollTop <= 0) closeDay();   // pull down to dismiss
   }, {passive: true});
-  requestAnimationFrame(() => dsheet && dsheet.classList.add('open'));
-  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    const S = springFrames(.5, .74);
-    panel.animate(S.v.map(v => ({transform: `translateY(${((1 - v) * 120).toFixed(2)}px) scale(${(.94 + .06 * v).toFixed(4)})`})), {duration: S.ms});
-  }
+  enter(dsheet, panel);
   $('dClose').focus({preventScroll: true});
 }
 function closeDay(){
@@ -2158,7 +2173,9 @@ $('refreshBtn').onclick = () => load();
 (() => {
   const SEL = '.tile, .daily, .radar, .sun, .ccard, .csearch, .chip, .hourly';
   const HOLD = 90, SLOP = 8;                               // ms to wait before calling it a tap; px of movement that makes it a drag
-  let cur = null, fx = null, x0 = 0, y0 = 0, pend = 0, pressAt = 0, down = false, dragging = false;
+  let cur = null, fx = null, x0 = 0, y0 = 0, pend = 0, pressAt = 0, down = false, dragging = false, tapRow = null, rowT = 0;
+  const unRow = (tapped) => { clearTimeout(rowT); const r = tapRow; tapRow = null; if (!r) return;
+    if (tapped) { r.classList.add('tap'); setTimeout(() => r.classList.remove('tap'), 120); } else r.classList.remove('tap'); };
   const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   // the panel gives a little under the finger, then springs back with a jelly wobble (added on top of any other motion)
   const squish = (el, frames, ms, ease) => { if (still()) return;
@@ -2170,7 +2187,8 @@ $('refreshBtn').onclick = () => load();
     el.classList.add('et-on');
     squish(el, [{transform: 'none'}, {transform: 'scale(.975)'}], 160, 'cubic-bezier(.3,.6,.4,1)');
     const r = el.getBoundingClientRect(), x = cx - r.left, y = cy - r.top;
-    const reach = 2 * Math.hypot(Math.max(x, r.width - x), Math.max(y, r.height - y)) * 1.05;   // the ripple reaches every corner
+    // the ripple reaches every corner, but never grows past 760px: huge rings were dropping frames and blanking glass on the phone
+    const reach = Math.min(760, 2 * Math.hypot(Math.max(x, r.width - x), Math.max(y, r.height - y)) * 1.05);
     fx = document.createElement('span'); fx.className = 'et-fx';
     fx.innerHTML = ['', ' two'].map(c => `<i class="et-ring${c}" style="left:${x}px;top:${y}px;width:${reach}px;height:${reach}px"></i>`).join('');
     el.appendChild(fx); const f = fx; requestAnimationFrame(() => f.isConnected && !f.classList.contains('off') && f.classList.add('on'));
@@ -2204,7 +2222,7 @@ $('refreshBtn').onclick = () => load();
   };
   const track = (x, y) => { gx = x; gy = y; if (!graf) graf = requestAnimationFrame(placeGlow); };
   const startDrag = () => {
-    if (dragging) return; dragging = true;
+    if (dragging) return; dragging = true; unRow(false);
     if (pend) { clearTimeout(pend); pend = 0; }
     if (cur && !cur.classList.contains('hourly')) release(false);
   };
@@ -2217,7 +2235,10 @@ $('refreshBtn').onclick = () => load();
     release(false); endDrag();
     down = !e.target.closest('button, input, a'); x0 = e.clientX; y0 = e.clientY;   // buttons have their own pull
     const el = e.target.closest(SEL);
-    if (!el || e.target.closest('.round, .pill, .del') || $('cities').classList.contains('editing') && el.classList.contains('ccard')) return;
+    // a day row flashes by itself; "More" has its own spring; neither sets off the whole-panel ripple
+    const row = e.target.closest('.drow');
+    if (row) { rowT = setTimeout(() => { if (!dragging) row.classList.add('tap'); }, HOLD); tapRow = row; return; }
+    if (!el || e.target.closest('.round, .pill, .del, .dmore') || $('cities').classList.contains('editing') && el.classList.contains('ccard')) return;
     cur = el;
     if (el.classList.contains('hourly')) { el.classList.add('touching'); return; }
     pend = setTimeout(() => { pend = 0; if (!dragging && cur === el) press(el, x0, y0); }, HOLD);   // still now? then it's a press
@@ -2230,12 +2251,12 @@ $('refreshBtn').onclick = () => load();
   document.addEventListener('touchmove', e => { const t = e.touches[0]; if (t) moved(t.clientX, t.clientY); }, {passive: true, capture: true});
   document.addEventListener('pointerup', e => {
     if (pend) { clearTimeout(pend); pend = 0; if (cur && !dragging) press(cur, x0, y0); }   // a quick tap: ripple now
-    release(!dragging); endDrag();
+    unRow(!dragging); release(!dragging); endDrag();
   }, true);
   // the browser taking over to scroll cancels the pointer: that was a drag, which carries on until the finger lifts
-  document.addEventListener('pointercancel', e => { if (e.pointerType === 'touch') startDrag(); else { release(false); endDrag(); } }, true);
-  document.addEventListener('touchend', e => { if (!e.touches.length) { release(false); endDrag(); } }, {passive: true, capture: true});
-  document.addEventListener('touchcancel', () => { release(false); endDrag(); }, {passive: true, capture: true});
+  document.addEventListener('pointercancel', e => { if (e.pointerType === 'touch') startDrag(); else { unRow(false); release(false); endDrag(); } }, true);
+  document.addEventListener('touchend', e => { if (!e.touches.length) { unRow(false); release(false); endDrag(); } }, {passive: true, capture: true});
+  document.addEventListener('touchcancel', () => { unRow(false); release(false); endDrag(); }, {passive: true, capture: true});
   // the page moves under a still finger while it scrolls: keep the glow where the finger is
   document.addEventListener('scroll', () => { if (dragging) track(gx, gy); }, {passive: true, capture: true});
   // the hourly row scrolls natively, which cancels the pointer: keep the glass bead swollen while it moves
@@ -2256,18 +2277,22 @@ $('refreshBtn').onclick = () => load();
   const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   // how much a button stretches: small round buttons the most, wide ones (list rows, menu items) only a touch
   const give = b => .11 * Math.min(1, 52 / Math.max(b.offsetWidth || 52, b.offsetHeight || 52));
-  // the droplet's shape for a pull of (dx, dy), scaled by k (1 = full pull, 0 = at rest; past 1 or below 0 it overshoots)
+  // the droplet's shape for a pull of (dx, dy), scaled by k (1 = full pull, 0 = at rest; past 1 or below 0 it overshoots).
+  // It stretches along the pull and thins across it, but only ever on the screen's own axes (no tilt): frosted glass
+  // under a tilted transform loses its rounded corners on the phone and shows up as a square.
+  const stretch = (dx, dy, k, g) => {
+    const d = Math.hypot(dx, dy); if (!d) return null;
+    const eff = R * (1 - Math.exp(-d / R)), ux = dx / d, uy = dy / d, e = eff / R * g * k;
+    return {ox: ux * eff * .3 * k, oy: uy * eff * .3 * k, sx: 1 + e * ux * ux - e * .45 * uy * uy, sy: 1 + e * uy * uy - e * .45 * ux * ux};
+  };
   const shape = (dx, dy, k, g, base = 1) => {
-    const d = Math.hypot(dx, dy); if (!d) return `scale(${base})`;
-    const eff = R * (1 - Math.exp(-d / R)), a = Math.atan2(dy, dx) * 180 / Math.PI;
-    const ox = dx / d * eff * .3 * k, oy = dy / d * eff * .3 * k, st = 1 + eff / R * g * k;
-    return `translate(${ox.toFixed(2)}px,${oy.toFixed(2)}px) rotate(${a.toFixed(1)}deg) scale(${st.toFixed(4)},${(1 / Math.sqrt(Math.max(.5, st))).toFixed(4)}) rotate(${(-a).toFixed(1)}deg)${base !== 1 ? ` scale(${base})` : ''}`;
+    const s = stretch(dx, dy, k, g); if (!s) return `scale(${base})`;
+    return `translate(${s.ox.toFixed(2)}px,${s.oy.toFixed(2)}px) scale(${s.sx.toFixed(4)},${s.sy.toFixed(4)})${base !== 1 ? ` scale(${base})` : ''}`;
   };
   // what's inside (icon or words) undoes the stretch, so it rides along with the glass but keeps its own shape
   const unshape = (dx, dy, k, g) => {
-    const d = Math.hypot(dx, dy); if (!d) return 'none';
-    const eff = R * (1 - Math.exp(-d / R)), a = Math.atan2(dy, dx) * 180 / Math.PI, st = 1 + eff / R * g * k;
-    return `rotate(${a.toFixed(1)}deg) scale(${(1 / st).toFixed(4)},${Math.sqrt(Math.max(.5, st)).toFixed(4)}) rotate(${(-a).toFixed(1)}deg)`;
+    const s = stretch(dx, dy, k, g); if (!s) return 'none';
+    return `scale(${(1 / s.sx).toFixed(4)},${(1 / s.sy).toFixed(4)})`;
   };
   // bare words in a button can't be transformed, so while it's pulled they sit in a wrapper that can; unwrapped after
   const wrapText = b => { [...b.childNodes].forEach(n => { if (n.nodeType === 3 && n.nodeValue.trim()) {
@@ -2493,11 +2518,7 @@ function openUpdate(rel, newer){
   if ($('uGet')) $('uGet').onclick = () => { openOut(apk.browser_download_url); closeUpdate(); };
   $('uView').onclick = () => openOut(rel.html_url || RELEASES);
   $('uLater').onclick = () => { if (newer) store.set('updSkip', rel.tag_name); closeUpdate(); };
-  requestAnimationFrame(() => usheet && usheet.classList.add('open'));
-  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    const S = springFrames(.5, .74);
-    panel.animate(S.v.map(v => ({transform: `translateY(${((1 - v) * 120).toFixed(2)}px) scale(${(.94 + .06 * v).toFixed(4)})`})), {duration: S.ms});
-  }
+  enter(usheet, panel);
 }
 function closeUpdate(){
   if (!usheet) return;
