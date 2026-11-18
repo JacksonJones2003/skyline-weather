@@ -57,10 +57,13 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 /* clear nights: three star layers twinkling out of step, a dim crescent moon, and now and then a shooting star */
 #stars{position:absolute;inset:0;transition:opacity 1.5s}
 #stars canvas{position:absolute;inset:0;width:100%;height:100%}
-#stars canvas:nth-child(1){animation:twinkle 3.4s ease-in-out infinite}
-#stars canvas:nth-child(2){animation:twinkle 4.6s ease-in-out -1.7s infinite}
-#stars canvas:nth-child(3){animation:twinkle 2.6s ease-in-out -.9s infinite}
+#stars canvas:nth-child(1){animation:twinkle 3.4s steps(34) infinite}
+#stars canvas:nth-child(2){animation:twinkle 4.6s steps(46) -1.7s infinite}
+#stars canvas:nth-child(3){animation:twinkle 2.6s steps(26) -.9s infinite}
 @keyframes twinkle{0%,100%{opacity:1}50%{opacity:.28}}
+/* nothing loops where it can't be seen: stars only twinkle at night, the rain's reflection only waves in rain, the
+   location dot only pulses on a map that's on screen, the pinwheel only spins while the hourly row is in view */
+#stars:not(.on) canvas,.water-reflection:not(.live),.radar.off .me::after,.rv.parked .me::after,.hourly.off .hx.w svg,.hero.off::after{animation:none!important}
 .moon{position:absolute;left:calc(50% - 150px);top:calc(var(--sat,0px) + 108px);width:30px;height:30px;
   filter:drop-shadow(0 0 6px rgba(255,246,220,.35));transition:opacity 1.5s}
 .moon svg{display:block;width:100%;height:100%}
@@ -70,8 +73,10 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 .rays{position:absolute;left:38%;top:-6vh;width:170vmax;height:170vmax;translate:-50% calc(-50% + .2 * min(120vw,900px));pointer-events:none;
   background:repeating-conic-gradient(from 0deg,rgba(255,250,232,.075) 0 3deg,rgba(255,250,232,0) 5deg 12deg,rgba(255,250,232,.04) 14deg 15deg,rgba(255,250,232,0) 17deg 24deg);
   -webkit-mask:radial-gradient(circle,#000 0,rgba(0,0,0,.5) 18%,transparent 45%);mask:radial-gradient(circle,#000 0,rgba(0,0,0,.5) 18%,transparent 45%);
-  animation:rays 150s linear infinite;transition:opacity 2s,left 2s,top 2s;opacity:0}
+  animation:rays 150s steps(1500) infinite;   /* 0.24° ten times a second: looks the same, a tenth of the redraws */transition:opacity 2s,left 2s,top 2s;opacity:0}
 @keyframes rays{to{rotate:360deg}}
+/* while the page scrolls, the sky's own motion pauses (see setScrolling) */
+.scrolling .rays,.scrolling #stars canvas,.scrolling .hero::after,.scrolling .water-reflection{animation-play-state:paused}
 @media (prefers-reduced-motion:reduce){#stars canvas,.rays{animation:none}}
 
 /* ---- top bar ---- */
@@ -97,7 +102,7 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 .hero{position:relative;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .hero::after{content:"";position:absolute;left:50%;bottom:calc(var(--gap) * -.42);width:min(210px,48%);height:24px;translate:-50% 0;z-index:-1;pointer-events:none;border-radius:50%;
   background:radial-gradient(closest-side,rgba(255,255,255,.62),rgba(255,255,255,.28) 45%,rgba(255,255,255,0));filter:blur(5px);
-  animation:hglow 6s ease-in-out infinite;opacity:var(--hg,1);transition:opacity .55s ease-out}
+  animation:hglow 6s steps(60) infinite;opacity:var(--hg,1);transition:opacity .55s ease-out}
 @keyframes hglow{0%,100%{transform:scaleX(1)}50%{transform:scaleX(1.08)}}
 .summary{font-size:20px;font-weight:500;color:rgba(235,245,255,.82)}
 .bignum{display:flex;align-items:flex-start;gap:6px;margin-top:4px}
@@ -437,10 +442,16 @@ input{-webkit-user-select:text;user-select:text}
 .et-fx.on{opacity:1}
 .et-fx.off{opacity:0;transition:opacity .55s ease-out}
 .ccard .et-fx{z-index:1}
+/* the radar card's press: no rings or sheen over the map, only a faint lit edge */
+.et-fx.soft::before{display:none}
+.et-fx.soft{box-shadow:inset 0 0 0 1px rgba(255,255,255,.32)}
+.et-soft.et-on{box-shadow:0 0 0 1px rgba(255,255,255,.18)!important}
 /* dragging across the panels: a faint glow under the finger and a barely-lit rim, handed from panel to panel */
 .et-glide{position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;z-index:2;opacity:0;transition:opacity .6s ease-out;
-  background:radial-gradient(circle 120px at var(--gx,50%) var(--gy,50%),rgba(255,255,255,.085),rgba(235,245,255,.03) 55%,rgba(255,255,255,0) 78%);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+/* the light itself is moved with a transform, so following the finger never repaints the panel */
+.et-glide i{position:absolute;left:0;top:0;width:240px;height:240px;margin:-120px 0 0 -120px;border-radius:50%;will-change:transform;
+  background:radial-gradient(closest-side,rgba(255,255,255,.085),rgba(235,245,255,.03) 55%,rgba(255,255,255,0))}
 .et-glide.on{opacity:1;transition:opacity .25s ease-out}
 .ccard .et-glide{z-index:1}
 /* rings spreading out from the touch, like a drop landing on water */
@@ -981,7 +992,14 @@ function drawClouds(kind, day, bare = false){
 }
 let shownTile = null;
 const TILE_MAX = 420;                                        // widest a tile is shown (CSS px); wider screens get more tiles
+// The clouds drift about 5 px a second, so they're moved only when they're due to shift by one screen pixel
+// (10-15 times a second) instead of on every display frame (up to 120). Each move makes the frosted panels
+// re-blur, so fewer moves is less work for the phone, with exactly the same motion.
+let lastCloudX = '';
+const nextCloud = ms => { cloudLoop = setTimeout(() => { cloudLoop = requestAnimationFrame(moveClouds); }, ms); };
 function moveClouds(){
+  cloudLoop = 0;
+  if (document.hidden) return;                               // picked up again when the app comes back (visibilitychange)
   // Tiles sit side by side on one layer, joined exactly on screen-pixel boundaries, and the layer moves
   // in whole screen pixels. Moving separate images by fractions of a pixel left a faint line at each join.
   const strip = $('cloudstrip'), dpr = devicePixelRatio || 1;
@@ -991,7 +1009,8 @@ function moveClouds(){
   while (strip.children.length > count) strip.lastChild.remove();
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   // position comes from the clock, so the sky carries on where it was when the app is reopened
-  const travelled = still ? 0 : (Date.now() / 1000) * (tw / SECONDS_PER_SCREEN);
+  if (scrolling && shownTile) { if (!still) nextCloud(200); return; }   // held still while the page scrolls
+  const travelled = still ? 0 : ((Date.now() - skyPausedTotal) / 1000) * (tw / SECONDS_PER_SCREEN);
   const offset = travelled % (tw * STRIP_TILES);
   const k = Math.floor(offset / tw), frac = offset - k * tw;
   const key = cloudSet + k + '|' + count + '|' + tw;
@@ -1000,8 +1019,9 @@ function moveClouds(){
     [...strip.children].forEach((im, j) => { im.style.width = tw + 'px'; im.style.left = (j * tw) + 'px'; im.src = tileSrc(k + j); });
     new Image().src = tileSrc(k + count);                    // warm up the next tile
   }
-  strip.style.transform = `translate3d(${-Math.round(frac * dpr) / dpr}px,0,0)`;
-  cloudLoop = still ? 0 : requestAnimationFrame(moveClouds);
+  const tx = `translate3d(${-Math.round(frac * dpr) / dpr}px,0,0)`;
+  if (tx !== lastCloudX) { lastCloudX = tx; strip.style.transform = tx; }
+  if (!still) nextCloud(Math.max(40, 1000 / dpr / (tw / SECONDS_PER_SCREEN)));
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && cloudSet && !cloudLoop) cloudLoop = requestAnimationFrame(moveClouds); });
 
@@ -1034,6 +1054,7 @@ window.__moon = () => moonPhase();   // test hook
 let starsOn = false, starSize = '', shootT = 0;
 function starSky(kind, day){
   starsOn = !day && (kind === 'clear' || kind === 'partly');
+  $('stars').classList.toggle('on', starsOn);
   $('stars').style.opacity = starsOn ? (kind === 'clear' ? 1 : .65) : 0;
   if (starsOn) $('moon').innerHTML = moonSvg(place ? +place.lat : 30);
   $('moon').style.opacity = starsOn ? .75 : 0;
@@ -1136,35 +1157,55 @@ function nextPreview(){
 
 // the glow under the number fades out as soon as the page moves (scrolling or pulling down) and
 // eases back in once the top of the page settles back into place
-let pullFade = 1;
+let pullFade = 1, lastHg = '';
 function heroGlow(){
-  const v = Math.max(0, 1 - window.scrollY / 60) * pullFade;
-  document.documentElement.style.setProperty('--hg', v.toFixed(2));
+  // set on the hero itself and only when it changes: writing it on the page root restyled the whole page every frame
+  const v = (Math.max(0, 1 - window.scrollY / 60) * pullFade).toFixed(2), hero = document.querySelector('.hero');
+  if (!hero || (v === lastHg && hero.style.getPropertyValue('--hg') === v)) return;
+  lastHg = v; hero.style.setProperty('--hg', v);
 }
 addEventListener('scroll', heroGlow, {passive: true});
+
+// ---- while a finger (or momentum) is scrolling the page, the sky holds still ----
+// Everything behind the frosted panels that moves (drifting clouds, turning rays, twinkling stars, the glow under the
+// number) makes every panel re-blur its background on every frame. During a scroll the panels are already doing that
+// for the scroll itself, so the sky pauses until the page settles, then carries on from exactly where it stopped.
+let scrolling = false, scrollT = 0, skyPausedAt = 0, skyPausedTotal = 0;
+function setScrolling(on){
+  if (on === scrolling) return;
+  scrolling = on;
+  document.documentElement.classList.toggle('scrolling', on);
+  if (on) skyPausedAt = performance.now(); else skyPausedTotal += performance.now() - skyPausedAt;
+}
+addEventListener('scroll', () => { setScrolling(true); clearTimeout(scrollT); scrollT = setTimeout(() => setScrolling(false), 160); }, {passive: true});
 
 let raf, parts=[];
 function particles(kind){
   cancelAnimationFrame(raf);
-  const cv=$('fx'), ctx=cv.getContext('2d'), dpr=devicePixelRatio||1;
+  // rain and snow are soft streaks and dots: 1.5x resolution is plenty, and on a 3x phone screen it's a quarter of the pixels
+  const cv=$('fx'), ctx=cv.getContext('2d'), dpr=Math.min(devicePixelRatio||1, 1.5);
   const size=()=>{cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;};
   size(); onresize=size;
   ctx.clearRect(0,0,cv.width,cv.height);
   const type = kind==='rain'||kind==='storm' ? 'rain' : kind==='snow' ? 'snow' : null;
+  $('waterReflection').classList.toggle('live', type==='rain');
   if (!type || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const N = type==='rain'?110:80;
   // Rain is time-based, so it keeps the same calmer speed at 60, 90 or 120 Hz.
   // The drops move at 62% of their old rate, with a little natural variation.
   parts = Array.from({length:N},()=>({x:Math.random(),y:Math.random(),v:type==='rain'?.0075+Math.random()*.006:.0015+Math.random()*.002,r:Math.random()}));
-  let last=0, ripples=[];
+  let last=0, ripples=[], gapPx=0;
+  // read once (and again on resize), not every frame: a style read each frame forced the page to restyle mid-scroll
+  const readGap=()=>{gapPx=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'))||innerHeight*.19;};
+  readGap(); addEventListener('resize', readGap);
   const tick=()=>{
-    const now=performance.now(), step=last?Math.min((now-last)/16.667,2):1; last=now;
+    const now=performance.now();
+    if(last && now-last<15){raf=requestAnimationFrame(tick);return;}   // at most 60 frames a second, even on a 120 Hz screen
+    const step=last?Math.min((now-last)/16.667,2):1; last=now;
     ctx.clearRect(0,0,cv.width,cv.height);
     const hero=document.querySelector('.hero'), rect=hero?.getBoundingClientRect();
-    const gap=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'))||innerHeight*.19;
-    const py=(rect ? rect.bottom+gap*.42+12 : innerHeight*.62)*dpr;
-    const glowValue=getComputedStyle(document.documentElement).getPropertyValue('--hg').trim();
-    const glowAlpha=glowValue==='' ? 1 : Math.max(0,parseFloat(glowValue)||0);
+    const py=(rect ? rect.bottom+gapPx*.42+12 : innerHeight*.62)*dpr;
+    const glowAlpha=lastHg==='' ? 1 : Math.max(0,parseFloat(lastHg)||0);      // the hero glow's current strength (see heroGlow)
     const poolHalfW=Math.min(innerWidth*.42,360)*dpr;
     for(const p of parts){
       const oldY=p.y;
@@ -1197,8 +1238,10 @@ function particles(kind){
         ctx.fillStyle=sheen;ctx.beginPath();ctx.arc(0,0,poolHalfW,0,Math.PI*2);ctx.fill();ctx.restore();
         // Reflect the exact live temperature styling, then let the animated water
         // layer above it add refraction and rain ripples.
-        const tempEl=document.querySelector('.temp'), tr=tempEl?.getBoundingClientRect();
-        if(tr && tempEl.textContent.trim()){
+        // the number's reflection is measured from its live styling, which costs a restyle: skip it while the page scrolls
+        const tempEl=scrolling?null:document.querySelector('.temp'), tr=tempEl?.getBoundingClientRect();
+        if(scrolling) $('waterReflection').style.opacity='0';
+        else if(tr && tempEl.textContent.trim()){
           const el=$('waterReflection'), cs=getComputedStyle(tempEl);
           el.textContent=tempEl.textContent.trim();el.style.left=tr.left+'px';el.style.top=(py/dpr-tr.height)+'px';
           el.style.width=tr.width+'px';el.style.height=tr.height+'px';el.style.fontFamily=cs.fontFamily;el.style.fontSize=cs.fontSize;
@@ -1815,7 +1858,6 @@ async function miniRadar(){
   }
   mini.jumpTo({center: [place.lon, place.lat], zoom: 6.6}); miniMe.setLngLat([place.lon, place.lat]);
   const card = $('radarCard');
-  setTimeout(() => { try { ensureBig(); } catch {} }, 1500);   // warm the full map up quietly
   if (!card.dataset.wired) {
     card.dataset.wired = 1;
     // open on a short, still touch only: a scroll cancels the touch, so it never opens by accident
@@ -2065,6 +2107,18 @@ function armGauges(){
 }
 let opened = false;
 
+// Parts of the page that animate are told when they scroll out of view, so their loops stop there (see the
+// .off rules). The full-screen radar map is a second map engine kept in memory; it's now only warmed up once the
+// radar card comes near the screen, instead of after every refresh whether or not the radar is ever opened.
+let bigWarm = 0;
+const visIO = new IntersectionObserver(es => es.forEach(e => {
+  e.target.classList.toggle('off', !e.isIntersecting);
+  if (e.isIntersecting && e.target.id === 'radarCard' && !bigWarm) bigWarm = setTimeout(() => { try { ensureBig(); } catch {} }, 800);
+}), {rootMargin: '200px 0px'});
+function watchVisibility(){
+  visIO.disconnect();
+  ['.hourly', '.hero', '#radarCard'].forEach(q => { const el = document.querySelector(q); if (el) visIO.observe(el); });
+}
 function render(){
   if(!data) return;
   const c=data.current,d=data.daily,h=data.hourly;
@@ -2119,6 +2173,8 @@ function render(){
     <div class="foot">Updated ${data._at.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})} · Forecast data: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a></div>`);
   if (!opened) { opened = true; $('main').classList.add('opening'); setTimeout(() => $('main').classList.remove('opening'), 1400); }
   armGauges();
+  heroGlow();
+  watchVisibility();
   wireSlider();
   miniRadar();
 }
@@ -2184,6 +2240,13 @@ $('refreshBtn').onclick = () => load();
     return a; };
   const press = (el, cx, cy) => {
     pressAt = performance.now();
+    if (el.classList.contains('radar')) {                  // the radar card shows a map: just a soft dip and a lit edge, no rings across it
+      el.classList.add('et-on', 'et-soft');
+      squish(el, [{transform: 'none'}, {transform: 'scale(.99)'}], 160, 'cubic-bezier(.3,.6,.4,1)');
+      fx = document.createElement('span'); fx.className = 'et-fx soft';
+      el.appendChild(fx); const f = fx; requestAnimationFrame(() => f.isConnected && !f.classList.contains('off') && f.classList.add('on'));
+      return;
+    }
     el.classList.add('et-on');
     squish(el, [{transform: 'none'}, {transform: 'scale(.975)'}], 160, 'cubic-bezier(.3,.6,.4,1)');
     const r = el.getBoundingClientRect(), x = cx - r.left, y = cy - r.top;
@@ -2198,7 +2261,8 @@ $('refreshBtn').onclick = () => load();
     const el = cur; cur = null;
     el.classList.remove('et-on', 'touching');
     if (!fx) return;                                       // it never became a press (a drag, or the hourly row)
-    const a = squish(el, tapped
+    const soft = el.classList.contains('et-soft'); el.classList.remove('et-soft');
+    const a = soft ? squish(el, [{transform: 'scale(.99)'}, {transform: 'none'}], 320, 'cubic-bezier(.3,.7,.4,1)') : squish(el, tapped
       ? [{transform: 'scale(.975)'}, {transform: 'scale(1.012)', offset: .38}, {transform: 'scale(.996)', offset: .68}, {transform: 'none'}]
       : [{transform: 'scale(.975)'}, {transform: 'none'}], tapped ? 560 : 260, 'cubic-bezier(.3,.7,.4,1)');
     if (a) a.onfinish = () => a.cancel();
@@ -2216,9 +2280,9 @@ $('refreshBtn').onclick = () => load();
     const target = el && !el.classList.contains('hourly') ? el : null;   // the hourly row has its own bead
     if (target !== gEl) {
       fadeGlow(); gEl = target;
-      if (target) { glow = document.createElement('span'); glow.className = 'et-glide'; target.appendChild(glow); const g = glow; requestAnimationFrame(() => g === glow && g.classList.add('on')); }
+      if (target) { glow = document.createElement('span'); glow.className = 'et-glide'; glow.innerHTML = '<i></i>'; target.appendChild(glow); const g = glow; requestAnimationFrame(() => g === glow && g.classList.add('on')); }
     }
-    if (glow) { const r = gEl.getBoundingClientRect(); glow.style.setProperty('--gx', (gx - r.left).toFixed(1) + 'px'); glow.style.setProperty('--gy', (gy - r.top).toFixed(1) + 'px'); }
+    if (glow) { const r = gEl.getBoundingClientRect(); glow.firstChild.style.transform = `translate3d(${(gx - r.left).toFixed(1)}px,${(gy - r.top).toFixed(1)}px,0)`; }
   };
   const track = (x, y) => { gx = x; gy = y; if (!graf) graf = requestAnimationFrame(placeGlow); };
   const startDrag = () => {
