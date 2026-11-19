@@ -1447,7 +1447,8 @@ function particles(kind){
   $('waterReflection').classList.toggle('live', type==='rain');
   if (!type || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   // thunderstorms: a downpour, more drops, falling faster and driven sideways by the wind
-  const fierce = kind==='storm', N = type==='rain'?(fierce?190:110):80;
+  // the wind's angle: each streak leans SLANT across for every pixel down, and the drop travels along that same line
+  const fierce = kind==='storm', SLANT = 5/19, N = type==='rain'?(fierce?260:110):80;
   // Rain is time-based, so it keeps the same calmer speed at 60, 90 or 120 Hz.
   // The drops move at 62% of their old rate, with a little natural variation.
   parts = Array.from({length:N},()=>({x:Math.random(),y:Math.random(),v:(type==='rain'?.0075+Math.random()*.006:.0015+Math.random()*.002)*(fierce?1.55:1),r:Math.random()}));
@@ -1463,20 +1464,22 @@ function particles(kind){
     const hero=document.querySelector('.hero'), rect=hero?.getBoundingClientRect();
     const py=(rect ? rect.bottom+gapPx*.42+12 : innerHeight*.62)*dpr;
     const glowAlpha=lastHg==='' ? 1 : Math.max(0,parseFloat(lastHg)||0);      // the hero glow's current strength (see heroGlow)
+    const lean=fierce?SLANT*cv.height/cv.width*1.05:0;                          // screen widths a storm drop drifts in one fall
+    const spawnX=()=>Math.random()*(1+lean)-lean;
     const poolHalfW=Math.min(innerWidth*.42,360)*dpr;
     for(const p of parts){
       const oldY=p.y;
-      if(type==='rain') p.y+=p.v*step;
-      else p.y+=p.v*step;
+      p.y+=p.v*step;
+      // storm rain moves along its own streak: SLANT pixels across for every pixel down (in screen pixels, not fractions)
+      if(fierce) p.x+=p.v*step*SLANT*cv.height/cv.width;
       if(type==='rain' && py>0 && py<cv.height && glowAlpha>.05 && p.x*cv.width>cv.width/2-poolHalfW && p.x*cv.width<cv.width/2+poolHalfW && oldY*cv.height<py && p.y*cv.height>=py){
         if(Math.random()<.035){ripples.push({x:p.x*cv.width,y:py,t:now,life:560+Math.random()*180,rx:3+Math.random()*5});if(ripples.length>5)ripples.shift();}
-        p.y=-.04-Math.random()*.12;
+        p.y=-.04-Math.random()*.12; if(fierce) p.x=spawnX();   // splashed: back in at the top, anywhere along it
       }
     }
     for(const p of parts){
       if(type==='snow') p.x+=Math.sin((p.y+p.r)*12)*.0006*step;
-      else if(fierce){p.x+=.0011*step; if(p.x>1.02) p.x-=1.04;}     // the wind carries storm rain across the sky
-      if(p.y>1){p.y=-.05;p.x=Math.random();}
+      if(p.y>1 || (fierce && p.x>1.03)){ p.y=-.05; p.x=fierce?spawnX():Math.random(); }   // back in at the top (storm rain from further left, as it drifts right)
       const x=p.x*cv.width,y=p.y*cv.height;
       if(type==='rain'){
         if(!(py>0 && y>=py && Math.abs(x-cv.width/2)<poolHalfW)){
