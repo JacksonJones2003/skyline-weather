@@ -13,7 +13,9 @@
 :root{
   --sky-a:#2f6fc0; --sky-b:#8ec0ea; --sky-c:#3f78bd;
   --ink:#ffffff; --ink-soft:rgba(255,255,255,.8); --ink-faint:rgba(255,255,255,.58);
-  --glass:rgba(255,255,255,.13); --glass-line:rgba(255,255,255,.2); --btn:rgba(120,165,225,.45);
+  --glass:rgba(255,255,255,.13); --glass-line:rgba(255,255,255,.2);
+  /* buttons: a lighter shade of the live sky, half see-through (blue by day, mauve-grey at dusk, slate at night) */
+  --btn:color-mix(in srgb,color-mix(in srgb,var(--sky-a) 58%,#fff) 45%,transparent);
   --warm:#ffb35c; --cool:#a6f0a0; --sun:#fff6d6;
   --font:sans-serif;
   color-scheme:dark;
@@ -148,7 +150,20 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 .hcol.half.sel .t{color:#fff;font-weight:500}
 .hcol .pp{font-size:11px;color:#bfe6ff;height:1em;margin-top:-4px}
 /* wind and UV for each hour (icons always; the words only under the selected hour) */
-.hx{display:flex;flex-direction:column;align-items:center;gap:1px;height:36px}
+.hx{display:flex;flex-direction:column;align-items:center;gap:1px;height:36px;transition:opacity .16s ease-out}   /* gone before the labels slide over */
+/* the wind and UV rows can be folded away (the thin toggle under the hours); while folding they fade in place */
+.hcol{position:relative}
+.hl{transform-origin:0 0}
+.hourly.lean .hx{position:absolute;left:0;right:0;top:var(--hxTop,62px);opacity:0;pointer-events:none}
+.hourly.lean .hx.uv{top:var(--hxTop2,99px)}
+.hxt{display:block;margin:2px auto 0;width:88px;height:18px;padding:0;border:0;background:none;position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.hxt i{position:absolute;top:7px;width:22px;height:3.5px;border-radius:2px;background:rgba(255,255,255,.42);transition:transform .38s cubic-bezier(.3,1.4,.5,1),background .2s}
+.hxt i:first-child{left:22px;transform-origin:100% 50%}
+.hxt i:last-child{right:22px;transform-origin:0 50%}
+.hxt:active i{background:rgba(255,255,255,.7)}
+/* folded: the bar bends into a soft V, pointing down to where the rows will open */
+.hourly.lean .hxt i:first-child{transform:rotate(14deg)}
+.hourly.lean .hxt i:last-child{transform:rotate(-14deg)}
 .hx svg{width:20px;height:20px;flex:none}
 .hx .lab{font-size:11px;font-weight:600;line-height:13px;white-space:nowrap;opacity:0;transition:opacity .2s}
 .hcol.sel .hx .lab{opacity:1}
@@ -189,7 +204,10 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 .dsheet.open{opacity:1}
 @media (min-width:700px){.dsheet{align-items:center}}
 .dsheet .dpanel{position:relative;width:100%;max-width:520px;max-height:calc(100vh - 32px);overflow-y:auto;overscroll-behavior:contain;
-  background:linear-gradient(180deg,rgba(80,130,200,.55),rgba(60,105,180,.62));border:1px solid var(--glass-line);border-radius:26px;
+  /* glass tinted with the live sky behind it, like the rest of the app (deep blue by day, indigo at dusk, navy at night) */
+  background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.03) 38%,rgba(255,255,255,0)),
+    linear-gradient(180deg,color-mix(in srgb,var(--sky-a) 74%,transparent),color-mix(in srgb,var(--sky-c) 82%,transparent));
+  border:1px solid var(--glass-line);border-radius:26px;
   backdrop-filter:blur(22px) saturate(1.2);-webkit-backdrop-filter:blur(22px) saturate(1.2);box-shadow:0 18px 50px rgba(0,25,70,.35);
   padding:16px 18px 18px;touch-action:pan-y}
 .dsheet .grab{width:38px;height:5px;border-radius:3px;background:rgba(255,255,255,.4);margin:-6px auto 10px}
@@ -498,10 +516,6 @@ body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 input{-webkit-user-select:text;user-select:text}
 
 /* ---- dark mode: light pages and the map follow the phone's dark theme ---- */
-.dark .gmenu{background:rgba(30,36,48,.7);color:#e9edf5;box-shadow:inset 0 0 0 1.2px rgba(255,255,255,.14),inset 0 1px 10px rgba(255,255,255,.05),0 14px 40px rgba(0,0,0,.45)}
-.dark .gmenu button{color:#e9edf5}
-.dark .gmenu button + button{border-top-color:rgba(255,255,255,.08)}
-.dark .gmenu small{color:#98a1b3}
 
 /* ---- droplet shimmer: pressing a panel sends a water ripple across the whole glass, a sheen sweeps over it,
    its rim lights up, and the panel gives like a droplet before springing back ---- */
@@ -567,9 +581,10 @@ input{-webkit-user-select:text;user-select:text}
 @keyframes lgJelly{0%{transform:scale(1.16)}30%{transform:scale(.92,1.06)}55%{transform:scale(1.05,.96)}78%{transform:scale(.99,1.01)}100%{transform:none}}
 
 /* ---- glass menu that grows out of the ⋮ button ---- */
-.gmenu{position:fixed;z-index:40;overflow:hidden;border-radius:22px;pointer-events:none;color:#16202e;will-change:transform;transform-origin:50% 50%;
-  background:rgba(240,246,255,.62);backdrop-filter:blur(22px) saturate(1.7) brightness(1.08);-webkit-backdrop-filter:blur(22px) saturate(1.7) brightness(1.08);
-  box-shadow:inset 0 0 0 1.2px rgba(255,255,255,.85),inset 0 1px 10px rgba(255,255,255,.45),0 14px 40px rgba(10,30,70,.28)}
+.gmenu{position:fixed;z-index:40;overflow:hidden;border-radius:22px;pointer-events:none;color:#fff;will-change:transform;transform-origin:50% 50%;
+  /* sky-tinted glass like the panels; keep these three in step with GLASS_BF / GLASS_SH in the morph */
+  background:color-mix(in srgb,var(--sky-a) 70%,transparent);backdrop-filter:blur(22px) saturate(1.3) brightness(1);-webkit-backdrop-filter:blur(22px) saturate(1.3) brightness(1);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.24),inset 0 1px 10px rgba(255,255,255,.12),0 14px 40px rgba(5,20,55,.38)}
 .gmenu.open{pointer-events:auto}
 /* the clear glass droplet the menu is while it travels: bright rim, bluish lens tint */
 .gmenu .drop{position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:inherit;
@@ -582,11 +597,11 @@ input{-webkit-user-select:text;user-select:text}
 .gmenu .gico{position:absolute;z-index:3;display:grid;place-items:center;color:#fff;pointer-events:none;opacity:0}
 @keyframes btnReturn{0%{background:rgba(150,185,255,.6);box-shadow:inset 0 0 0 1.2px rgba(255,255,255,.6)}100%{}}
 .btn-return{animation:btnReturn .34s cubic-bezier(.3,1.3,.5,1)}
-.gmenu button{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:none;font:inherit;font-size:16px;color:#16202e;padding:14px 20px;text-align:left}
-.gmenu button + button{border-top:1px solid rgba(20,40,80,.09)}
+.gmenu button{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:none;font:inherit;font-size:16px;color:#fff;padding:14px 20px;text-align:left}
+.gmenu button + button{border-top:1px solid rgba(255,255,255,.12)}
 .gmenu button[hidden]{display:none}
-.gmenu button:active{background:rgba(255,255,255,.35)}
-.gmenu small{color:#5b6680;font-size:13px}
+.gmenu button:active{background:rgba(255,255,255,.14)}
+.gmenu small{color:rgba(255,255,255,.62);font-size:13px}
 .gscrim{position:fixed;inset:0;z-index:39}
 
 /* ---- pull to refresh: the page stretches down, a small ring appears in the sky ---- */
@@ -627,7 +642,7 @@ input{-webkit-user-select:text;user-select:text}
 /* Keep the city pager readable while held: its normal frosted surface stays at rest,
    but the press state must not blur the dots or swell into a glass droplet. */
 #pager.holding,#pager.scrubbing{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
-#pager.holding.lg-press,#pager.scrubbing.lg-press{transform:none!important;background:rgba(74,101,150,1)!important;
+#pager.holding.lg-press,#pager.scrubbing.lg-press{transform:none!important;background:color-mix(in srgb,var(--sky-a) 78%,#fff)!important;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.25)!important}
 #pager.holding.lg-press > *,#pager.scrubbing.lg-press > *{filter:none!important;opacity:1!important}
 .spin svg{animation:spin .8s linear infinite}
@@ -841,7 +856,7 @@ input{-webkit-user-select:text;user-select:text}
 const $ = id => document.getElementById(id);
 // Saved cities and settings live in the page's storage, and (in the Android app) a copy is kept in Android's own app
 // storage, which survives updates. When the page's copy is missing, it's restored from Android's.
-const KEEP = new Set(['places', 'place', 'idx', 'unit', 'halfHours', 'updSkip']);
+const KEEP = new Set(['places', 'place', 'idx', 'unit', 'halfHours', 'updSkip', 'hourExtras']);
 const kept = (() => { try { return window.AndroidApp && window.AndroidApp.kept ? JSON.parse(window.AndroidApp.kept()) : null; } catch { return null; } })();
 const keepCopy = (k, s) => { if (!KEEP.has(k)) return; try { window.AndroidApp && window.AndroidApp.keep && window.AndroidApp.keep(k, s); } catch {} };
 const store = {
@@ -1794,6 +1809,7 @@ document.addEventListener('keydown', e => {
 });
 
 // ---- hourly curve ----
+let hourExtrasOn = store.get('hourExtras', false);          // the wind and UV rows under each hour (the thin toggle); folded until someone opens them
 const COL = 70, COL_WIDE = 54, HALF = 28;               // an hour's column (narrower when unfolded); the half-hour column (unfolded only)
 const WIDE = matchMedia('(min-width:600px)');            // the unfolded phone / wide-screen layout
 let halfHours = store.get('halfHours', true);            // unfolded: show the lighter half-hour points (⋮ menu toggle)
@@ -1841,6 +1857,28 @@ function wireSlider(){
   sc.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(update); }, {passive: true});
   update();
 }
+// Show / hide the wind and UV rows. The layout changes once; the hour labels, the toggle and everything below then
+// glide from where they were to where they now are (transforms only), and the rows fade, so it stays smooth.
+document.addEventListener('click', e => {
+  const tg = e.target.closest && e.target.closest('.hxt'); if (!tg) return;
+  const sec = tg.closest('.hourly'); if (!sec || sec._busy) return;
+  const open = !hourExtrasOn, w = sec.querySelector('.hx.w'), u = sec.querySelector('.hx.uv'), hl = sec.querySelector('.hl');
+  const below = [...sec.parentElement.children].filter(el => el !== sec && sec.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+  const tops0 = below.map(el => el.getBoundingClientRect().top), h0 = sec.querySelector('.hinner').offsetHeight;
+  // closing: the rows lift out of the layout but stay drawn exactly where they were while they fade
+  if (!open && w) { sec.style.setProperty('--hxTop', w.offsetTop + 'px'); sec.style.setProperty('--hxTop2', (u ? u.offsetTop : w.offsetTop + 37) + 'px'); }
+  hourExtrasOn = open; store.set('hourExtras', open);
+  sec.classList.toggle('lean', !open);
+  tg.setAttribute('aria-expanded', String(open)); tg.setAttribute('aria-label', `${open ? 'Hide' : 'Show'} wind and UV`);
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const h1 = sec.querySelector('.hinner').offsetHeight, D = h1 - h0, tops1 = below.map(el => el.getBoundingClientRect().top);
+  const opts = {duration: 440, easing: 'cubic-bezier(.3,.8,.25,1)'};
+  sec._busy = true; setTimeout(() => sec._busy = false, 460);
+  below.forEach((el, i) => { const dy = tops0[i] - tops1[i]; if (Math.abs(dy) > .5) el.animate([{transform: `translateY(${dy}px)`}, {transform: 'none'}], {...opts, composite: 'add'}); });
+  [...sec.querySelectorAll('.hcol .t'), tg].forEach(el => el.animate([{translate: `0 ${-D}px`}, {translate: '0 0'}], opts));
+  if (hl && h1) hl.animate([{scale: `1 ${(h0 / h1).toFixed(4)}`}, {scale: '1 1'}], opts);   // the selected hour's band
+  if (open) sec.querySelectorAll('.hx').forEach(x => x.animate([{opacity: 0, translate: '0 -6px'}, {opacity: 1, translate: '0 0'}], {...opts, duration: 360, delay: 70, fill: 'backwards'}));
+});
 function smooth(pts){
   let d=`M${pts[0][0]},${pts[0][1]}`;
   for(let i=0;i<pts.length-1;i++){
@@ -1903,7 +1941,8 @@ function hourly(){
     const lbl = x.now ? 'Now' : x.sun ? clock(x.time) : ampm(x.time);
     return `<div class="hcol${x.now?' now':''}" style="width:${C}px">${ic}<div class="pp">${!x.sun&&x.pp>=20?x.pp+'%':''}</div>${hourExtras(x)}<div class="t">${lbl}</div></div>`;
   }).join('');
-  return `<section class="hourly"><div class="hscroll"><div class="hinner" style="width:${W}px"><div class="hl" style="width:${widths[0]}px"></div>${svg}<div class="hrow">${cols}</div></div></div></section>`;
+  return `<section class="hourly${hourExtrasOn ? '' : ' lean'}"><div class="hscroll"><div class="hinner" style="width:${W}px"><div class="hl" style="width:${widths[0]}px"></div>${svg}<div class="hrow">${cols}</div></div></div>
+    <button class="hxt" aria-expanded="${hourExtrasOn}" aria-label="${hourExtrasOn ? 'Hide' : 'Show'} wind and UV"><i></i><i></i></button></section>`;
 }
 
 // ---- precipitation radar: now, then the next 4 hours (Iowa State Mesonet) ----
@@ -2737,7 +2776,7 @@ $('refreshBtn').onclick = () => load();
     // a day row flashes by itself; "More" has its own spring; neither sets off the whole-panel ripple
     const row = e.target.closest('.drow');
     if (row) { rowT = setTimeout(() => { if (!dragging) row.classList.add('tap'); }, HOLD); tapRow = row; return; }
-    if (!el || e.target.closest('.round, .pill, .del, .dmore') || $('cities').classList.contains('editing') && el.classList.contains('ccard')) return;
+    if (!el || e.target.closest('.round, .pill, .del, .dmore, .hxt') || $('cities').classList.contains('editing') && el.classList.contains('ccard')) return;
     cur = el;
     if (el.classList.contains('hourly')) { el.classList.add('touching'); return; }
     pend = setTimeout(() => { pend = 0; if (!dragging && cur === el) press(el, x0, y0); }, HOLD);   // still now? then it's a press
@@ -2818,7 +2857,7 @@ $('refreshBtn').onclick = () => load();
   // buttons that share one pill (zoom − / +, the city screen's add / edit) stretch together, as the whole pill
   const GROUP = '.zoom, .cgroup';
   document.addEventListener('pointerdown', e => {
-    const btn = e.target.closest && e.target.closest('button'); if (!btn || btn.disabled) return;
+    const btn = e.target.closest && e.target.closest('button'); if (!btn || btn.disabled || btn.classList.contains('hxt')) return;
     const grp = btn.closest(GROUP), b = grp || btn;
     b.getAnimations({subtree: true}).forEach(a => { if (a.id === 'pull') a.cancel(); });
     unwrapText(b);
@@ -2865,8 +2904,8 @@ let menuR = null, menuAnim = [];
 const MW = 200, TINT = 'rgba(46,82,170,.42)';
 // the glass of the menu and of the ⋮ button, written with matching parts so one can blend into the other: while the
 // droplet travels its frosting and rim turn into the button's, so the hand-over at either end is seamless
-const GLASS_BF = 'blur(22px) saturate(1.7) brightness(1.08)', BTN_BF = 'blur(10px) saturate(1) brightness(1)';
-const GLASS_SH = 'inset 0 0 0 1.2px rgba(255,255,255,.85), inset 0 1px 10px rgba(255,255,255,.45), 0 14px 40px rgba(10,30,70,.28)';
+const GLASS_BF = 'blur(22px) saturate(1.3) brightness(1)', BTN_BF = 'blur(10px) saturate(1) brightness(1)';
+const GLASS_SH = 'inset 0 0 0 1px rgba(255,255,255,.24), inset 0 1px 10px rgba(255,255,255,.12), 0 14px 40px rgba(5,20,55,.38)';
 const BTN_SH = 'inset 0 0 0 0 rgba(255,255,255,0), inset 0 1px 0 rgba(255,255,255,.25), 0 0 0 rgba(10,30,70,0)';
 function menuGeometry(){
   const r = $('moreBtn').getBoundingClientRect(), H = gm.querySelector('.items').scrollHeight;
