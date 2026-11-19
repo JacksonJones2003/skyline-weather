@@ -819,6 +819,7 @@ input{-webkit-user-select:text;user-select:text}
     <button id="mCities" role="menuitem">Manage cities</button>
     <button id="mShare" role="menuitem">Share weather</button>
     <button id="mHalf" role="menuitem" hidden></button>
+    <button id="mRain" role="menuitem" hidden></button>
     <button id="mUpdate" role="menuitem">Check for updates</button>
   </div>
 </div>
@@ -2969,6 +2970,9 @@ function setMenuText(){
   // half-hour detail is an unfolded-screen option: offered when unfolded, or on a foldable even while it's folded
   $('mHalf').hidden = !(WIDE.matches || isFoldable());
   $('mHalf').innerHTML = `Half-hour detail <small>${halfHours ? 'On' : 'Off'}</small>`;
+  // rain alerts run in the Android app's background service, so the switch only appears there
+  const rainOn = rainAlertsOn(); $('mRain').hidden = rainOn == null;
+  if (rainOn != null) $('mRain').innerHTML = `Rain alerts <small>${rainOn ? 'On' : 'Off'}</small>`;
 }
 // The ⋮ button turns into the menu like vivo's: the menu itself is the droplet. Its visible shape (a clip) starts
 // as the button's circle, squeezes, drifts down-left while swelling into a rounded blob, then fills out into the
@@ -3071,6 +3075,12 @@ $('moreBtn').onclick = () => gm.hidden ? openMenu() : closeMenu();
 gs.onclick = () => closeMenu();
 $('mUnit').onclick = () => closeMenu(() => { unit = unit === 'F' ? 'C' : 'F'; store.set('unit', unit); render(); });
 $('mCities').onclick = () => closeMenu(openCities);
+// rain alerts: a heads-up when rain is about to start where you are (live radar + the 15-minute forecast, US only)
+function rainAlertsOn(){ try { return window.AndroidApp && window.AndroidApp.rainAlerts ? !!window.AndroidApp.rainAlerts() : null; } catch { return null; } }
+$('mRain').onclick = () => closeMenu(() => {
+  const on = !rainAlertsOn(); try { window.AndroidApp.setRainAlerts(on); } catch {}
+  skyToast(on ? (place && inUS(place) ? 'Rain alerts on · you’ll get a heads-up before rain starts' : 'Rain alerts on · they cover the US only') : 'Rain alerts off');
+});
 $('mHalf').onclick = () => closeMenu(() => { halfHours = !halfHours; store.set('halfHours', halfHours); if (data) render();
   skyToast(`Half-hour detail ${halfHours ? 'on' : 'off'}${halfHours && !WIDE.matches ? ' · shows when unfolded' : ''}`); });
 $('mShare').onclick = () => closeMenu(() => {

@@ -112,9 +112,22 @@ public class MainActivity extends Activity {
                 + "if(!b)return 0;b.click();return 1})()", null);
     }
 
+    /** Rain alerts need notification permission (Android 13+): ask once, a moment after the app opens. */
+    void askNotifications() {
+        if (android.os.Build.VERSION.SDK_INT < 33 || !RainAlert.enabled(this)) return;
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return;
+        try { requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 7); } catch (Throwable ignored) { }
+    }
+
     @Override protected void onResume() {
         super.onResume();
         resumed = true;
+        android.content.SharedPreferences sp = getSharedPreferences(WeatherWidget.PREFS, MODE_PRIVATE);
+        if (!sp.getBoolean("askedNotif", false)) {
+            sp.edit().putBoolean("askedNotif", true).apply();
+            new android.os.Handler(getMainLooper()).postDelayed(() -> { if (resumed) askNotifications(); }, 2500);
+        }
+        try { WidgetKeepAliveService.start(this); } catch (Throwable ignored) { }   // rain alerts run from it too
         followLocation();
         // optional: lets the app revive itself through Shizuku, and makes it appear in Shizuku's list
         ShizukuWatchdog.request(this);
@@ -327,6 +340,12 @@ public class MainActivity extends Activity {
                 }
                 return o.toString();
             } catch (Exception e) { return "{}"; }
+        }
+        // rain alerts on / off (the ⋮ menu); turning them on asks for notification permission if needed
+        @JavascriptInterface public boolean rainAlerts() { return RainAlert.enabled(MainActivity.this); }
+        @JavascriptInterface public void setRainAlerts(boolean on) {
+            RainAlert.setEnabled(MainActivity.this, on);
+            if (on) runOnUiThread(MainActivity.this::askNotifications);
         }
         // in-app updates: download, check and install a release from this app's GitHub (see Updater)
         @JavascriptInterface public void installUpdate(String url, String sha256) { Updater.start(MainActivity.this, url, sha256); }

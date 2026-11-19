@@ -112,6 +112,7 @@ public class WeatherRefreshJob extends JobService {
         try { WidgetKeepAliveService.start(getApplicationContext()); } catch (Throwable ignored) { }
         new Thread(() -> {
             boolean success;
+            try { RainAlert.check(getApplicationContext()); } catch (Throwable ignored) { }
             try {
                 success = WeatherWidget.update(getApplicationContext(), true);
             } catch (Throwable t) {

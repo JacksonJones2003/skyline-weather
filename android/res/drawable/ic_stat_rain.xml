@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rain alert status-bar icon: a cloud with three drops (white; the system tints it). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M7,15.5h10.5a3.75,3.75 0,0 0,0.4,-7.48A5.5,5.5 0,0 0,7.3 7.2A4.15,4.15 0,0 0,7 15.5z"/>
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M8.2,17.6l-1.1,2.4a0.9,0.9 0,1 0,1.65 0.75l1.1,-2.4a0.9,0.9 0,1 0,-1.65 -0.75zM12.2,17.6l-1.1,2.4a0.9,0.9 0,1 0,1.65 0.75l1.1,-2.4a0.9,0.9 0,1 0,-1.65 -0.75zM16.2,17.6l-1.1,2.4a0.9,0.9 0,1 0,1.65 0.75l1.1,-2.4a0.9,0.9 0,1 0,-1.65 -0.75z"/>
+</vector>

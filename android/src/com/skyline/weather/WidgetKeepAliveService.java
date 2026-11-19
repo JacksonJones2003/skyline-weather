@@ -54,6 +54,15 @@ public class WidgetKeepAliveService extends Service {
         }
     };
 
+    // rain alerts check every 5 minutes (RainAlert throttles itself and does nothing when switched off)
+    private static final long RAIN_MS = 5 * 60 * 1000L;
+    private final Runnable rainTick = new Runnable() {
+        @Override public void run() {
+            new Thread(() -> { try { RainAlert.check(getApplicationContext()); } catch (Throwable ignored) { } }, "SkylineRain").start();
+            handler.postDelayed(this, RAIN_MS);
+        }
+    };
+
     private void refresh(String why, long maxAgeMs) {
         new Thread(() -> {
             try { WeatherWidget.update(getApplicationContext(), true, maxAgeMs); }
@@ -66,8 +75,11 @@ public class WidgetKeepAliveService extends Service {
         return m.getAppWidgetIds(new ComponentName(c, WeatherWidget.class)).length > 0;
     }
 
+    // runs for the widget, and for rain alerts even without a widget on the home screen
+    static boolean needed(Context c) { return hasWidgets(c) || RainAlert.enabled(c); }
+
     static void start(Context c) {
-        if (!hasWidgets(c)) return;
+        if (!needed(c)) return;
         Intent i = new Intent(c, WidgetKeepAliveService.class);
         try {
             c.startForegroundService(i);
@@ -106,11 +118,13 @@ public class WidgetKeepAliveService extends Service {
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        if (!hasWidgets(this)) { stopSelf(); return START_NOT_STICKY; }
+        if (!needed(this)) { stopSelf(); return START_NOT_STICKY; }
         try { WeatherRefreshJob.schedule(this); } catch (Throwable ignored) { }
         try { ShizukuWatchdog.startLoop(); } catch (Throwable ignored) { }
         handler.removeCallbacks(tick);
         handler.post(tick);          // refresh now, then every 15 minutes while alive
+        handler.removeCallbacks(rainTick);
+        handler.postDelayed(rainTick, 20 * 1000L);   // first rain check shortly after start, then every 5 minutes
         return START_STICKY;
     }
 
@@ -149,6 +163,7 @@ public class WidgetKeepAliveService extends Service {
 
     @Override public void onDestroy() {
         handler.removeCallbacks(tick);
+        handler.removeCallbacks(rainTick);
         if (wakeRegistered) {
             try { unregisterReceiver(wake); } catch (Throwable ignored) { }
             wakeRegistered = false;
