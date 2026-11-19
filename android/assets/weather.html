@@ -1833,6 +1833,7 @@ let hourState = null;
 // As the hourly row scrolls, the temperature circle rides along the curve: it travels from the first column to
 // the last at the same pace as the scroll, glides along the line, and lights up the column nearest to it.
 function wireSlider(){
+  sliderOnGPU = false;
   const sc = document.querySelector('.hscroll'); if (!sc || !hourState) return;
   const {pts, items, lefts, widths, W} = hourState, n = pts.length, cx = pts.map(p => p[0]);
   const knob = sc.querySelector('.hknob'), hz = sc.querySelector('.hhz'), kt = knob.querySelector('.kt');
@@ -1855,20 +1856,78 @@ function wireSlider(){
     // where x falls between two points on the line (columns can differ in width, so search rather than divide)
     let j = 0; while (j < n - 2 && cx[j + 1] <= x) j++;
     const t = n > 1 ? Math.min(1, Math.max(0, (x - cx[j]) / (cx[j + 1] - cx[j]))) : 0, pos = j + t;
-    const [px, py] = n > 1 ? onCurve(j, t) : pts[0];
-    knob.style.transform = `translate3d(${px.toFixed(1)}px,${py.toFixed(1)}px,0)`;
-    hz.style.transform = `translate3d(0,${py.toFixed(1)}px,0)`;
-    // labels on the line fade as the bead passes over them rather than blinking off (only those whose fade changes are touched)
-    lbs.forEach(l => { const d = Math.abs(l.x - px) / COL, o = d < 1 ? Math.max(0, d * 1.8 - .5).toFixed(1) : ''; if (o !== l.o) { l.o = o; l.el.style.opacity = o; } });
+    if (!sliderOnGPU) {
+      const [px, py] = n > 1 ? onCurve(j, t) : pts[0];
+      knob.style.transform = `translate3d(${px.toFixed(1)}px,${py.toFixed(1)}px,0)`;
+      hz.style.transform = `translate3d(0,${py.toFixed(1)}px,0)`;
+      lbs.forEach(l => { const d = Math.abs(l.x - px) / COL, o = d < 1 ? Math.max(0, d * 1.8 - .5).toFixed(1) : ''; if (o !== l.o) { l.o = o; l.el.style.opacity = o; } });
+    }
     const i = Math.round(pos);
     if (i === cur) return; cur = i;
     kt.textContent = Math.round(T(items[i].t));
     hl.style.transform = `translateX(${lefts[i]}px)`; hl.style.width = widths[i] + 'px';
     cols.forEach((c, k) => c.classList.toggle('sel', k === i));
   };
-  sc.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(update); }, {passive: true});
+  // Where the phone can drive animations from a scroll position (Chrome 115+), the bead, its level line and the label
+  // fades are tied straight to the row's scroll: the graphics engine moves them in step with the finger, with no code
+  // running per frame. Code then only runs when the highlighted hour changes. Elsewhere, update() moves them as before.
+  const span = cx[n - 1] - cx[0];
+  if (window.ScrollTimeline && n > 1 && span > 0 && sc.scrollWidth > sc.clientWidth) {
+    try {
+      const tl = new ScrollTimeline({source: sc, axis: 'x'}), opts = {timeline: tl, fill: 'both'}, S = 6;
+      const at = px => Math.min(1, Math.max(0, (px - cx[0]) / span));
+      const bead = [], line = []; let last = -1;
+      for (let j = 0; j < n - 1; j++) for (let k = 0; k < S; k++) {
+        const [px, py] = onCurve(j, k / S), o = at(px); if (o <= last) continue; last = o;
+        bead.push({offset: o, transform: `translate3d(${px.toFixed(1)}px,${py.toFixed(1)}px,0)`});
+        line.push({offset: o, transform: `translate3d(0,${py.toFixed(1)}px,0)`});
+      }
+      const [ex, ey] = pts[n - 1];
+      bead.push({offset: 1, transform: `translate3d(${ex}px,${ey}px,0)`}); line.push({offset: 1, transform: `translate3d(0,${ey}px,0)`});
+      if (bead[0].offset > 0) { bead.unshift({...bead[0], offset: 0}); line.unshift({...line[0], offset: 0}); }
+      knob.animate(bead, opts); hz.animate(line, opts);
+      // each label fades out as the bead passes over it: fully gone within .28 of a column, back by .83
+      const k1 = .28 * COL / span, k2 = .83 * COL / span;
+      lbs.forEach(l => {
+        const o = at(l.x), pts2 = [[o - k2, 1], [o - k1, 0], [o + k1, 0], [o + k2, 1]]
+          .map(([q, v]) => [Math.min(1, Math.max(0, q)), v]).filter((p, i, a) => i === 0 || p[0] > a[i - 1][0]);
+        const kf = pts2.map(([q, v]) => ({offset: q, opacity: v}));
+        if (kf[0].offset > 0) kf.unshift({offset: 0, opacity: 1}); if (kf[kf.length - 1].offset < 1) kf.push({offset: 1, opacity: 1});
+        l.el.animate(kf, opts);
+      });
+      lbs.length = 0;                                     // update() leaves them to the timeline now
+      sliderOnGPU = true;
+    } catch { sliderOnGPU = false; }
+  }
+  // When the row comes to rest, the bead eases onto the nearest temperature point. The bead travels faster than the row
+  // scrolls, so each point has one scroll position that puts the bead on it (sunrise / sunset marks are skipped). The row
+  // keeps its full momentum: only once a fling has completely finished does it glide the last few pixels into place.
+  let stops = [];
+  const placeSnaps = () => {
+    const max = sc.scrollWidth - sc.clientWidth;
+    stops = max > 0 && span > 0 ? items.map((it, j) => it.sun ? null : (cx[j] - cx[0]) / span * max).filter(v => v != null) : [];
+  };
+  placeSnaps(); snapRefresh = placeSnaps;
+  let touching = false, settleT = 0;
+  const settle = () => {
+    if (touching || !stops.length || !sc.isConnected) return;
+    const at = sc.scrollLeft, to = stops.reduce((a, b) => Math.abs(b - at) < Math.abs(a - at) ? b : a);
+    if (Math.abs(to - at) > .5) sc.scrollTo({left: to, behavior: 'smooth'});
+  };
+  sc.addEventListener('touchstart', () => { touching = true; clearTimeout(settleT); }, {passive: true});
+  // lifting the finger without a fling: no scroll follows, so settle after a moment (a fling's own scrolling cancels this)
+  sc.addEventListener('touchend', () => { touching = false; clearTimeout(settleT); settleT = setTimeout(settle, 140); }, {passive: true});
+  sc.addEventListener('touchcancel', () => { touching = false; }, {passive: true});
+  if ('onscrollend' in sc) sc.addEventListener('scrollend', settle);                  // fires once the fling has fully stopped
+  sc.addEventListener('scroll', () => {
+    clearTimeout(settleT);
+    if (!('onscrollend' in sc)) settleT = setTimeout(settle, 160);                    // older engines: a short pause means it stopped
+    if (!raf) raf = requestAnimationFrame(update);
+  }, {passive: true});
   update();
 }
+let sliderOnGPU = false, snapRefresh = null;
+addEventListener('resize', () => { clearTimeout(snapRefresh?._t); if (snapRefresh) snapRefresh._t = setTimeout(() => snapRefresh && snapRefresh(), 150); });
 // Show / hide the wind and UV rows. The layout changes once; the hour labels, the toggle and everything below then
 // glide from where they were to where they now are (transforms only), and the rows fade, so it stays smooth.
 document.addEventListener('click', e => {
@@ -3163,8 +3222,9 @@ if (appVer() && Date.now() - store.get('updCheck', 0) > 12 * 3600 * 1000) setTim
     if (!armed) { if (Math.abs(dx) > Math.abs(dy) || dy < 8) { if (Math.abs(dx) > 12 || dy < -4) y0 = null; return; } armed = true; m.classList.add('pulling'); }
     pull = Math.min(MAX, (dy - 8) * .5);                  // resistance: the page moves half as far as the finger
     show(Math.max(0, pull));
-    if (e.cancelable) e.preventDefault();
-  }, {passive: false});
+    // passive: a listener that may cancel touches makes the phone wait for this code before it can scroll anything,
+    // anywhere on the page (the hourly row included). It doesn't need to cancel: at the top there's nothing to scroll up.
+  }, {passive: true});
   document.addEventListener('touchend', async () => {
     if (y0 == null) return; y0 = null;
     if (!armed) return;
