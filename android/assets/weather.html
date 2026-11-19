@@ -57,9 +57,9 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 #flash{background:radial-gradient(circle at var(--fx,50%) var(--fy,20%),rgba(235,240,255,.5),rgba(205,218,255,.2) 38%,rgba(185,200,255,.07) 70%,rgba(185,200,255,0))}
 #bolt svg{display:block;filter:drop-shadow(0 0 6px rgba(200,215,255,.9))}
 .water-reflection{position:absolute;pointer-events:none;white-space:nowrap;text-align:center;transform-origin:center bottom;opacity:0;
-  filter:blur(.8px);will-change:transform,opacity,left,top;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.72),transparent 92%);mask-image:linear-gradient(to top,rgba(0,0,0,.72),transparent 92%);
+  filter:blur(.6px);will-change:transform,opacity,left,top;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.92),transparent 95%);mask-image:linear-gradient(to top,rgba(0,0,0,.92),transparent 95%);
   animation:waterWaver 4.2s ease-in-out infinite}
-@keyframes waterWaver{0%,100%{transform:scaleY(-.38) skewX(-1.1deg)}50%{transform:scaleY(-.38) skewX(1.1deg)}}
+@keyframes waterWaver{0%,100%{transform:scaleY(-.48) skewX(-1.1deg)}50%{transform:scaleY(-.48) skewX(1.1deg)}}
 /* clear nights: three star layers twinkling out of step, a dim crescent moon, and now and then a shooting star */
 #stars{position:absolute;inset:0;transition:opacity 1.5s}
 #stars canvas{position:absolute;inset:0;width:100%;height:100%}
@@ -1473,7 +1473,7 @@ function particles(kind){
       // storm rain moves along its own streak: SLANT pixels across for every pixel down (in screen pixels, not fractions)
       if(fierce) p.x+=p.v*step*SLANT*cv.height/cv.width;
       if(type==='rain' && py>0 && py<cv.height && glowAlpha>.05 && p.x*cv.width>cv.width/2-poolHalfW && p.x*cv.width<cv.width/2+poolHalfW && oldY*cv.height<py && p.y*cv.height>=py){
-        if(Math.random()<.035){ripples.push({x:p.x*cv.width,y:py,t:now,life:560+Math.random()*180,rx:3+Math.random()*5});if(ripples.length>5)ripples.shift();}
+        if(Math.random()<(fierce?.07:.09)){ripples.push({x:p.x*cv.width,y:py,t:now,life:620+Math.random()*220,rx:3+Math.random()*6});if(ripples.length>11)ripples.shift();}
         p.y=-.04-Math.random()*.12; if(fierce) p.x=spawnX();   // splashed: back in at the top, anywhere along it
       }
     }
@@ -1496,10 +1496,14 @@ function particles(kind){
         ctx.save();ctx.globalAlpha=glowAlpha;
         // A transparent, feathered water sheen blends into the sky instead of
         // drawing a separate puddle object.
-        ctx.save();ctx.translate(cx,py);ctx.scale(1,.16);
+        ctx.save();ctx.translate(cx,py);ctx.scale(1,.22);
         const sheen=ctx.createRadialGradient(0,0,0,0,0,poolHalfW);
-        sheen.addColorStop(0,'rgba(143,198,230,.18)');sheen.addColorStop(.48,'rgba(88,154,195,.10)');sheen.addColorStop(1,'rgba(55,112,158,0)');
+        sheen.addColorStop(0,'rgba(160,210,240,.36)');sheen.addColorStop(.45,'rgba(98,164,210,.22)');sheen.addColorStop(.8,'rgba(60,118,170,.08)');sheen.addColorStop(1,'rgba(55,112,158,0)');
         ctx.fillStyle=sheen;ctx.beginPath();ctx.arc(0,0,poolHalfW,0,Math.PI*2);ctx.fill();ctx.restore();
+        // the surface line: brightest in the middle, fading out to both sides
+        const sl=ctx.createLinearGradient(cx-poolHalfW*.8,0,cx+poolHalfW*.8,0);
+        sl.addColorStop(0,'rgba(225,242,255,0)');sl.addColorStop(.5,'rgba(225,242,255,.42)');sl.addColorStop(1,'rgba(225,242,255,0)');
+        ctx.fillStyle=sl;ctx.fillRect(cx-poolHalfW*.8,py-.75*dpr,poolHalfW*1.6,1.5*dpr);
         // Reflect the exact live temperature styling, then let the animated water
         // layer above it add refraction and rain ripples.
         // the number's reflection is measured from its live styling, which costs a restyle: skip it while the page scrolls
@@ -1512,7 +1516,7 @@ function particles(kind){
           el.style.fontWeight=cs.fontWeight;el.style.lineHeight=cs.lineHeight;el.style.letterSpacing=cs.letterSpacing;
           el.style.backgroundImage=cs.backgroundImage;el.style.backgroundSize='100% 100%';el.style.backgroundPosition='center';el.style.backgroundRepeat='no-repeat';
           el.style.webkitBackgroundClip='text';el.style.backgroundClip='text';el.style.webkitTextFillColor='transparent';
-          el.style.opacity=(glowAlpha*.48).toString();
+          el.style.opacity=(glowAlpha*.74).toString();
         }
         ctx.restore();
       }
@@ -1520,9 +1524,9 @@ function particles(kind){
       ctx.save(); ctx.globalCompositeOperation='screen';
       ripples=ripples.filter(q=>now-q.t<q.life);
       for(const q of ripples){
-        const u=(now-q.t)/q.life, a=(1-u)*.62*glowAlpha;
-        ctx.strokeStyle=`rgba(240,250,255,${a})`;ctx.lineWidth=(1.4-u*.5)*dpr;
-        ctx.beginPath();ctx.ellipse(q.x,q.y,q.rx+u*24*dpr,(1.5+u*4)*dpr,0,0,Math.PI*2);ctx.stroke();
+        const u=(now-q.t)/q.life, a=(1-u)*.85*glowAlpha;
+        ctx.strokeStyle=`rgba(240,250,255,${a})`;ctx.lineWidth=(1.6-u*.6)*dpr;
+        ctx.beginPath();ctx.ellipse(q.x,q.y,q.rx+u*30*dpr,(1.6+u*4.8)*dpr,0,0,Math.PI*2);ctx.stroke();
         if(u<.27){ctx.fillStyle=`rgba(255,255,255,${a*.7})`;ctx.beginPath();ctx.ellipse(q.x+(u-.13)*10*dpr,q.y-((.27-u)*9*dpr),1*dpr,2*dpr,-.25,0,Math.PI*2);ctx.fill();}
       }
       ctx.restore();
