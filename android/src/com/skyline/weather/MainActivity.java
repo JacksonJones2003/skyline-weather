@@ -84,12 +84,25 @@ public class MainActivity extends Activity {
      * holding a whole Chromium instance there made lmkd kill the app on a memory-tight phone.
      */
     @Override protected void onDestroy() {
+        if (current == this) current = null;
         try {
             if (root != null && web != null) root.removeView(web);
             if (web != null) { web.loadUrl("about:blank"); web.destroy(); web = null; }
         } catch (Throwable ignored) { }
         super.onDestroy();
     }
+
+    // ---- in-app updates (see Updater): the page shows progress through window.__updState ----
+    private static volatile MainActivity current;
+    private boolean resumed;
+    static boolean isOpen() { MainActivity m = current; return m != null && m.resumed; }
+    /** Tells the open page how an update is going; does nothing if the app isn't open. */
+    static void report(String state, int pct, String msg) {
+        MainActivity m = current; if (m == null) return;
+        String js = "window.__updState&&window.__updState(" + org.json.JSONObject.quote(state) + "," + pct + "," + org.json.JSONObject.quote(msg == null ? "" : msg) + ")";
+        m.runOnUiThread(() -> { if (m.web != null) m.web.evaluateJavascript(js, null); });
+    }
+    @Override protected void onPause() { resumed = false; super.onPause(); }
 
     /** Runs the page's "use my current location" flow so the home place follows the phone. */
     private void followLocation() {
@@ -101,6 +114,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        resumed = true;
         followLocation();
         // optional: lets the app revive itself through Shizuku, and makes it appear in Shizuku's list
         ShizukuWatchdog.request(this);
@@ -160,6 +174,7 @@ public class MainActivity extends Activity {
         ws.setDomStorageEnabled(true);
         ws.setGeolocationEnabled(true);
         web.addJavascriptInterface(new Bridge(), "AndroidApp");
+        current = this;
         // the page asks for its cloud images at https://skyline.app/<name>.webp; hand them over from the app's own files
         web.setWebViewClient(new android.webkit.WebViewClient() {
             @Override public android.webkit.WebResourceResponse shouldInterceptRequest(WebView v, android.webkit.WebResourceRequest r) {
@@ -290,6 +305,33 @@ public class MainActivity extends Activity {
         @JavascriptInterface public boolean isFoldable() {
             try { return getPackageManager().hasSystemFeature("android.hardware.sensor.hinge_angle"); } catch (Exception e) { return false; }
         }
+        // Saved cities and settings, kept in Android's own app storage as well as the page's. The page's storage
+        // (inside the WebView) can lose recent writes when the app is closed for an update; this copy survives.
+        @JavascriptInterface public void keep(String key, String json) {
+            if (key == null || key.isEmpty() || key.length() > 40) return;
+            getSharedPreferences("page_store", MODE_PRIVATE).edit().putString(key, json).commit();   // on the bridge thread, not the UI
+        }
+        @JavascriptInterface public String kept() {
+            try {
+                org.json.JSONObject o = new org.json.JSONObject();
+                for (java.util.Map.Entry<String, ?> e : getSharedPreferences("page_store", MODE_PRIVATE).getAll().entrySet())
+                    if (e.getValue() instanceof String) o.put(e.getKey(), e.getValue());
+                // nothing kept yet (first run with this): the widget's city is still known, so offer it as the city list
+                if (!o.has("places")) {
+                    android.content.SharedPreferences w = getSharedPreferences(WeatherWidget.PREFS, MODE_PRIVATE);
+                    String name = w.getString("name", null); float lat = w.getFloat("lat", 999), lon = w.getFloat("lon", 999);
+                    if (name != null && lat != 999 && lon != 999) {
+                        org.json.JSONObject p = new org.json.JSONObject().put("name", name).put("lat", (double) lat).put("lon", (double) lon);
+                        o.put("widgetPlace", new org.json.JSONArray().put(p).toString());
+                    }
+                }
+                return o.toString();
+            } catch (Exception e) { return "{}"; }
+        }
+        // in-app updates: download, check and install a release from this app's GitHub (see Updater)
+        @JavascriptInterface public void installUpdate(String url, String sha256) { Updater.start(MainActivity.this, url, sha256); }
+        @JavascriptInterface public boolean canInstallUpdates() { return Updater.canInstall(MainActivity.this); }
+        @JavascriptInterface public void openInstallSettings() { runOnUiThread(() -> Updater.openInstallSettings(MainActivity.this)); }
         // the page's update check compares this with the newest GitHub release
         @JavascriptInterface public String appVersion() {
             try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception e) { return ""; }

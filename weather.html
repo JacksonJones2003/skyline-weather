@@ -223,6 +223,12 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 .ubtn:active{transform:scale(.95)}
 .ubtn.main{flex-basis:100%;background:rgba(255,255,255,.92);color:#1d3557;font-weight:600;border-color:transparent}
 #mUpdate small{font-size:12px;opacity:.6;margin-left:4px}
+.uprog{margin-top:14px}
+.ubar{height:6px;border-radius:3px;background:rgba(255,255,255,.18);overflow:hidden}
+.ubar i{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#a6f0a0,#8fd0ff);transition:width .25s ease-out}
+.ustat{font-size:14px;color:var(--ink-soft);margin-top:8px;line-height:1.4}
+.uprog.err .ubar{display:none}
+.uprog.err .ustat{color:#ffd0c8}
 #mUpdate small.new{opacity:1;background:#ff9a3c;color:#fff;border-radius:8px;padding:1px 7px;font-weight:600}
 .dnav .round{width:36px;height:36px;padding:0}
 .dnav .round:disabled{opacity:.3;cursor:default}
@@ -292,6 +298,36 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 .sun .times{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft);margin-top:2px}
 .sun .times b{display:block;font-size:17px;font-weight:500;color:#fff}
 .sun .times div:last-child{text-align:right}
+.sun .times small{display:block;font-size:11px;color:var(--ink-faint);margin-top:1px}
+.sun .times .mid{align-self:flex-end;font-size:12px;color:var(--ink-faint);padding-bottom:3px}
+/* sun / moon tabs: the card shows one view at a time (the moon at night) */
+.sun .seg{display:inline-flex;gap:2px;padding:2px;border-radius:14px;background:rgba(255,255,255,.1);border:1px solid var(--glass-line)}
+.sun .seg button{border:0;background:none;color:var(--ink-soft);font-size:13px;padding:4px 12px;border-radius:12px;transition:background .2s,color .2s}
+.sun .seg button[aria-selected="true"]{background:rgba(255,255,255,.9);color:#1d3557;font-weight:600}
+.sun .vm{display:none}
+.sun.mv .vm{display:block}
+.sun.mv .vs{display:none}
+.sun .hd .dl.vm{display:none}
+.sun.mv .hd .dl.vm{display:inline}
+.sun .mnone{font-size:14px;color:var(--ink-soft);padding:24px 2px}
+.sun{cursor:pointer}
+/* the week's sun and moon (tap the card) */
+.wscale{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-faint);margin:14px 2px 2px}
+.wk{display:flex;flex-direction:column}
+.wrow{display:grid;grid-template-columns:4.6rem 1fr 1fr 1.15fr;column-gap:8px;row-gap:6px;align-items:center;padding:9px 2px;border-bottom:1px solid rgba(255,255,255,.08)}
+.wrow:last-child{border-bottom:0}
+.wrow small{display:block;font-size:11px;color:var(--ink-faint);font-weight:400;margin-top:1px}
+.wrow .wd b{font-weight:600;font-size:15px}
+.wrow .wt,.wrow .wl{font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wrow .wl{text-align:right}
+.wrow .wl small.up{color:#b9f0a8}.wrow .wl small.dn{color:#ffc9a6}
+.wrow .wl.wm{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.wrow .wl.wm svg{width:22px;height:22px;flex:none}
+.wbar{grid-column:1 / -1;position:relative;height:5px;border-radius:3px;background:rgba(10,25,70,.28);overflow:hidden}
+.wbar i{position:absolute;top:0;bottom:0;border-radius:3px}
+.wbar.sunb i{background:linear-gradient(90deg,#ffb35c,#ffe08a 50%,#ffb35c)}
+.wbar.moonb i{background:linear-gradient(90deg,#aeb9f0,#eef0ff 50%,#aeb9f0)}
+.wbar .noon{position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;background:rgba(255,255,255,.35)}
 .foot{text-align:center;font-size:.72rem;color:var(--ink-faint);padding:16px 0 4px}
 /* unfolded foldable / wide screens: sky, temperature and hourly across the top; week list and detail tiles side by side */
 @media (min-width:600px){
@@ -311,7 +347,11 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 /* ---- search sheet ---- */
 /* ---- Lifestyle page (home button): weather-based tips and stories, over the same live sky ---- */
 .life{position:fixed;inset:0;z-index:32;overflow-y:auto;overscroll-behavior:contain;color:#fff;
-  background:linear-gradient(180deg,rgba(14,25,49,.985),rgba(14,25,49,.99) 42%,rgba(14,25,49,.995));
+  /* the same live sky as the forecast behind it (it follows the time of day, sunrise and sunset, and the weather),
+     with a light shade on top so the words stay easy to read on the brightest skies */
+  background:linear-gradient(180deg,rgba(8,24,60,.06),rgba(8,24,60,.16) 55%,rgba(8,24,60,.22)),
+    linear-gradient(180deg,var(--sky-a) 0%,var(--sky-b) 42%,var(--sky-c) 62%,var(--sky-a) 100%);
+  background-color:var(--sky-a);transition:background-color 2s;
   padding:calc(var(--sat,env(safe-area-inset-top,0px)) + 8px) max(14px,var(--sar,env(safe-area-inset-right,0px))) 110px max(14px,var(--sal,env(safe-area-inset-left,0px)));
   transform:translate3d(30px,0,0);opacity:0;will-change:transform,opacity}
 .life.open{transform:none;opacity:1}
@@ -368,39 +408,81 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 @keyframes mePulse{from{transform:scale(.4);opacity:1}to{transform:scale(1.6);opacity:0}}
 
 /* full-screen radar: grows out of the card */
-.rv{position:fixed;inset:0;z-index:35;overflow:hidden;background:#cfe0f2;will-change:clip-path;
+.rv{position:fixed;inset:0;z-index:35;overflow:hidden;background:#45464a;will-change:clip-path;
   clip-path:inset(50% 50% 50% 50%);transition:clip-path .48s cubic-bezier(.25,1,.3,1)}
 .rv.closing{transition:clip-path .36s cubic-bezier(.5,0,.3,1)}
 .rv.parked{visibility:hidden;pointer-events:none}   /* kept laid out at full size so opening never re-sizes the map */
-.rv #rmap{position:absolute;inset:0;background:#cfe0f2}
+.rv #rmap{position:absolute;inset:0;background:#45464a}
 .rv .ui{position:absolute;inset:0;z-index:1000;pointer-events:none;opacity:0;transition:opacity .25s}   /* above the map's own layers */
 .rv.settled .ui{opacity:1}
 .rv .ui > *{pointer-events:auto}
 .rv .bar{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:10px;
   padding:calc(var(--sat,env(safe-area-inset-top,0px)) + 10px) max(16px,var(--sar,env(safe-area-inset-right,0px))) 0 max(16px,var(--sal,env(safe-area-inset-left,0px)))}
-.rv .gl{background:rgba(240,246,255,.6);backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6);
-  box-shadow:inset 0 0 0 1.2px rgba(255,255,255,.85),inset 0 1px 8px rgba(255,255,255,.4),0 8px 26px rgba(10,30,70,.18);color:#16202e}
-.rv .round.gl{color:#16202e}
+.rv .gl{background:rgba(58,60,66,.62);backdrop-filter:blur(20px) saturate(1.3);-webkit-backdrop-filter:blur(20px) saturate(1.3);color:#fff;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),inset 0 1px 0 rgba(255,255,255,.12),0 6px 22px rgba(0,0,0,.28)}
+.rv .round.gl{color:#fff}
+/* top: close on the left; zoom and back-to-my-city on the right */
+/* (height:auto: the tiles' little gauge bars are also class "bar", 6px tall, which squashed this and pushed the
+   buttons up under the camera) */
+.rv .bar{justify-content:space-between;height:auto;border-radius:0}
+.rv .rtools{display:flex;gap:8px}
+/* radar search: it takes the place of the top bar while it's open */
+.rv.finding .bar,.rv.finding .rlegend{opacity:0;pointer-events:none}
+.rv .rfind{position:absolute;left:0;right:0;top:0;z-index:2;
+  padding:calc(var(--sat,env(safe-area-inset-top,0px)) + 10px) max(16px,var(--sar,env(safe-area-inset-right,0px))) 0 max(16px,var(--sal,env(safe-area-inset-left,0px)))}
+.rv .rsearch{display:flex;align-items:center;gap:10px;height:44px;border-radius:22px;padding:0 6px 0 16px;color:#fff}
+.rv .rsearch input{flex:1;min-width:0;border:0;outline:0;background:none;color:#fff;font:inherit;font-size:16px}
+.rv .rsearch input::placeholder{color:rgba(255,255,255,.6)}
+.rv .rsearch button{border:0;background:none;color:#fff;font:inherit;font-size:15px;padding:8px 10px}
+.rv .rres{margin-top:8px;border-radius:18px;overflow:hidden}
+.rv .rres button{display:block;width:100%;text-align:left;border:0;background:none;color:#fff;font:inherit;padding:11px 16px}
+.rv .rres button + button{border-top:1px solid rgba(255,255,255,.1)}
+.rv .rres button:active{background:rgba(255,255,255,.1)}
+.rv .rres b{font-weight:600;font-size:15px}
+.rv .rres small{display:block;font-size:12.5px;color:rgba(255,255,255,.62);margin-top:1px}
+.rv .rres .none{padding:12px 16px;font-size:14px;color:rgba(255,255,255,.7)}
+.tpin.found .b{background:#4a5fa0;border-color:rgba(255,255,255,.5)}
+.tpin.dup{display:none!important}
+.rv .zoom{display:flex;height:44px;border-radius:22px;overflow:hidden}
+.rv .zoom button{width:52px;height:44px;border:0;background:none;color:#fff;display:grid;place-items:center}
+.rv .zoom button:active{background:rgba(255,255,255,.12)}
+/* the precipitation scale: one gradient, light at the bottom to extreme at the top */
+.rv .rlegend{position:absolute;left:max(12px,var(--sal,env(safe-area-inset-left,0px)));top:calc(var(--sat,env(safe-area-inset-top,0px)) + 70px);
+  border-radius:18px;padding:10px 14px 12px;width:132px}
+.rv .rlegend .h{font-size:14px;font-weight:600;padding-bottom:8px;margin:0 -14px 8px;padding-left:14px;border-bottom:1px solid rgba(255,255,255,.12)}
+.rv .rlegend .sc{display:flex;gap:10px}
+.rv .rlegend .sc i{width:5px;border-radius:3px;background:linear-gradient(180deg,#fff,#ffd440 20%,#f45caa 34%,#b048e8 50%,#5c52ff 70%,#2060ff)}
+.rv .rlegend .sc div{display:flex;flex-direction:column;gap:12px;font-size:13px;color:rgba(255,255,255,.82)}
+/* temperature pins */
+.tpin{display:flex;flex-direction:column;align-items:center;pointer-events:none;color:#fff;font-family:var(--font)}
+.tpin .b{display:grid;place-items:center;min-width:34px;height:34px;padding:0 6px;border-radius:17px;background:#2a3a5c;border:2px solid rgba(0,0,0,.35);
+  box-shadow:0 3px 10px rgba(0,0,0,.35)}
+.tpin .b b{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.tpin .nm{margin-top:4px;font-size:12.5px;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,.7);white-space:nowrap}
+.tpin.main .b{width:76px;height:76px;border-radius:50%;gap:0;align-content:center;background:radial-gradient(circle at 50% 30%,#3d5287,#24345a);border:3px solid rgba(0,0,0,.35)}
+.tpin.main .b b{font-size:26px;line-height:1}
+.tpin.main .b .icon{width:24px;height:24px;margin-top:2px}
+.tpin.main .tail{width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:10px solid #24345a;margin-top:-2px}
+.tpin.main .dot{width:10px;height:10px;border-radius:50%;background:#1d2230;border:2px solid rgba(255,255,255,.35);margin-top:4px}
 .rv .title{height:44px;padding:0 18px;border-radius:22px;display:flex;align-items:center;gap:8px;font-size:16px;font-weight:600;max-width:60vw}
 .rv .title span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rv .title small{font-weight:400;color:#5b6680;font-size:13px}
+.rv .title small{font-weight:400;color:rgba(255,255,255,.7);font-size:13px}
 .rv .panel{position:absolute;left:max(12px,var(--sal,env(safe-area-inset-left,0px)));right:max(12px,var(--sar,env(safe-area-inset-right,0px)));
   bottom:calc(env(safe-area-inset-bottom,0px) + 14px);border-radius:24px;padding:12px 14px 12px;max-width:720px;margin:0 auto}
 .rv .row{display:flex;align-items:center;gap:12px}
 .rv .play{flex:none;width:44px;height:44px}
 .rv .tl{flex:1;min-width:0}
-.rv .tl .lab{display:flex;justify-content:space-between;font-size:13px;color:#5b6680;margin-bottom:6px}
-.rv .tl .lab b{color:#16202e;font-weight:600;font-variant-numeric:tabular-nums}
-.rv input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;background:linear-gradient(90deg,#2f7bf0 var(--p,100%),rgba(22,32,46,.15) var(--p,100%));outline:none}
+.rv .tl .lab{display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,.7);margin-bottom:6px}
+.rv .tl .lab b{color:#fff;font-weight:600;font-variant-numeric:tabular-nums}
+.rv input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;background:linear-gradient(90deg,#6f8cff var(--p,100%),rgba(255,255,255,.18) var(--p,100%));outline:none}
 .rv input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:0;box-shadow:0 1px 5px rgba(0,30,80,.35),inset 0 0 0 1px rgba(0,0,0,.04)}
 .rv .hours{display:flex;justify-content:space-between;margin:7px -3px 0}
-.rv .hours button{min-height:24px;padding:2px 4px;border:0;border-radius:9px;background:none;color:rgba(22,32,46,.55);font-size:11px;font-variant-numeric:tabular-nums}
-.rv .hours button.active{color:#16202e;font-weight:700;background:rgba(22,32,46,.08)}
-.dark .rv .hours button{color:rgba(255,255,255,.68)}
-.dark .rv .hours button.active{color:#fff;background:rgba(255,255,255,.15)}
+.rv .hours button{min-height:24px;padding:2px 4px;border:0;border-radius:9px;background:none;color:rgba(255,255,255,.62);font-size:11px;font-variant-numeric:tabular-nums}
+.rv .hours button.active{color:#fff;font-weight:700;background:rgba(255,255,255,.14)}
 .rv .legend{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#5b6680}
 .rv .legend i{flex:1;height:6px;border-radius:6px;background:linear-gradient(90deg,#02fd02,#01c501,#008e00,#fdf802,#e5bc00,#fd9500,#fd0000,#bc0000,#f800fd)}
-.rv .credit{font-size:10.5px;color:#7a8296;margin-top:8px;text-align:center}
+.radar .mini{background:#45464a}
+.rv .credit{font-size:10.5px;color:rgba(255,255,255,.5);margin-top:8px;text-align:center}
 .rv .msg{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);padding:10px 16px;border-radius:16px;font-size:14px}
 .maplibregl-ctrl-attrib,.maplibregl-ctrl-logo{display:none!important}
 
@@ -416,21 +498,10 @@ body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 input{-webkit-user-select:text;user-select:text}
 
 /* ---- dark mode: light pages and the map follow the phone's dark theme ---- */
-.dark .cities{background:#101318;color:#e9edf5}
-.dark .cbtn,.dark .cgroup,.dark .csearch,.dark .cities .opt{background:#1d222b;color:#e9edf5;box-shadow:none}
-.dark .ctitle,.dark .cgroup button,.dark .csearch input{color:#e9edf5}
-.dark .cgroup button.on,.dark .cities .opt.loc{color:#7fb2ff}
-.dark .cities .opt small,.dark .csearch svg,.dark .cities .msg,.dark .chint{color:#8b93a3}
 .dark .gmenu{background:rgba(30,36,48,.7);color:#e9edf5;box-shadow:inset 0 0 0 1.2px rgba(255,255,255,.14),inset 0 1px 10px rgba(255,255,255,.05),0 14px 40px rgba(0,0,0,.45)}
 .dark .gmenu button{color:#e9edf5}
 .dark .gmenu button + button{border-top-color:rgba(255,255,255,.08)}
 .dark .gmenu small{color:#98a1b3}
-.dark .rv,.dark .rv #rmap,.dark .radar .mini{background:#1a1f27}
-.dark .rv .gl{background:rgba(28,34,46,.66);color:#e9edf5;box-shadow:inset 0 0 0 1.2px rgba(255,255,255,.14),0 8px 26px rgba(0,0,0,.4)}
-.dark .rv .round.gl{color:#e9edf5}
-.dark .rv .title small,.dark .rv .tl .lab,.dark .rv .legend,.dark .rv .credit{color:#98a1b3}
-.dark .rv .tl .lab b{color:#e9edf5}
-.dark .rv input[type=range]{background:linear-gradient(90deg,#4d8dff var(--p,100%),rgba(255,255,255,.18) var(--p,100%))}
 
 /* ---- droplet shimmer: pressing a panel sends a water ripple across the whole glass, a sheen sweeps over it,
    its rim lights up, and the panel gives like a droplet before springing back ---- */
@@ -564,25 +635,29 @@ input{-webkit-user-select:text;user-select:text}
 .city .pinc{width:15px;height:15px;margin-right:5px;vertical-align:-1px}
 
 /* ---- city management: a light page in the phone's settings style ---- */
-.cities{position:fixed;inset:0;z-index:30;background:#f1f2f6;color:#141821;overflow-y:auto;overscroll-behavior:contain;
+.cities{position:fixed;inset:0;z-index:30;color:#fff;overflow-y:auto;overscroll-behavior:contain;
+  /* the forecast's live sky (time of day, sunrise / sunset, weather), lightly shaded so the list reads easily */
+  background:linear-gradient(180deg,rgba(8,24,60,.08),rgba(8,24,60,.18) 55%,rgba(8,24,60,.24)),
+    linear-gradient(180deg,var(--sky-a) 0%,var(--sky-b) 42%,var(--sky-c) 62%,var(--sky-a) 100%);
+  background-color:var(--sky-a);
   padding:calc(var(--sat,env(safe-area-inset-top,0px)) + 8px) max(16px,var(--sar,env(safe-area-inset-right,0px))) 32px max(16px,var(--sal,env(safe-area-inset-left,0px)));
   opacity:0;transform:translateX(24px);transition:opacity .22s ease-out,transform .22s ease-out}
 .cities.open{opacity:1;transform:none}
 .cities .wrap{max-width:1080px;margin:0 auto}
 .ch{display:flex;align-items:center;gap:12px;height:56px}
-.cbtn{width:42px;height:42px;border-radius:50%;background:#fff;border:0;display:grid;place-items:center;color:#141821;box-shadow:0 1px 4px rgba(20,30,60,.08)}
-.ctitle{flex:1;font-size:20px;font-weight:600;color:#141821}
-.cgroup{display:flex;background:#fff;border-radius:21px;box-shadow:0 1px 4px rgba(20,30,60,.08)}
-.cgroup button{width:46px;height:42px;border:0;background:none;display:grid;place-items:center;color:#141821}
-.cgroup button.on{color:#2f6fdc}
-.csearch{display:flex;align-items:center;gap:10px;background:#fff;border-radius:22px;height:44px;padding:0 16px;margin:6px 0 14px;box-shadow:0 1px 4px rgba(20,30,60,.06)}
-.csearch svg{flex:none;color:#7a8090}
-.csearch input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;font-size:15px;color:#141821}
-.csearch input::placeholder{color:#9096a3}
-.cities .opt{display:flex;flex-direction:column;align-items:flex-start;text-align:left;width:100%;background:#fff;color:#141821;border:0;border-radius:16px;padding:12px 16px;margin-bottom:8px;box-shadow:0 1px 4px rgba(20,30,60,.06)}
-.cities .opt small{color:#7a8090}
-.cities .opt.loc{flex-direction:row;align-items:center;gap:10px;color:#2f6fdc;font-weight:500}
-.cities .msg{color:#5a6070;padding:6px 4px;font-size:14px}
+.cbtn{width:42px;height:42px;border-radius:50%;background:var(--btn);border:0;display:grid;place-items:center;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+.ctitle{flex:1;font-size:20px;font-weight:600;color:#fff;text-shadow:0 1px 4px rgba(0,30,80,.3)}
+.cgroup{display:flex;background:var(--btn);border-radius:21px;box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+.cgroup button{width:46px;height:42px;border:0;background:none;display:grid;place-items:center;color:#fff}
+.cgroup button.on{color:#1d3557;background:rgba(255,255,255,.9)}
+.csearch{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.14);border:1px solid var(--glass-line);border-radius:22px;height:44px;padding:0 16px;margin:6px 0 14px}
+.csearch svg{flex:none;color:var(--ink-soft)}
+.csearch input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;font-size:15px;color:#fff}
+.csearch input::placeholder{color:rgba(255,255,255,.62)}
+.cities .opt{display:flex;flex-direction:column;align-items:flex-start;text-align:left;width:100%;background:rgba(255,255,255,.13);color:#fff;border:1px solid var(--glass-line);border-radius:16px;padding:12px 16px;margin-bottom:8px}
+.cities .opt small{color:var(--ink-faint)}
+.cities .opt.loc{flex-direction:row;align-items:center;gap:10px;color:#fff;font-weight:500}
+.cities .msg{color:var(--ink-soft);padding:6px 4px;font-size:14px}
 .cgrid{display:grid;grid-template-columns:1fr;gap:10px}
 @media (min-width:600px){.cgrid{grid-template-columns:1fr 1fr}}
 .ccard{position:relative;height:86px;border-radius:18px;overflow:hidden;color:#fff;padding:0 20px;display:flex;justify-content:space-between;align-items:center;
@@ -597,7 +672,7 @@ input{-webkit-user-select:text;user-select:text}
 .cities.editing .ccard .del{display:grid}
 .cities.editing .ccard{animation:wiggle .35s ease-in-out infinite alternate}
 @keyframes wiggle{from{transform:rotate(-.4deg)}to{transform:rotate(.4deg)}}
-.chint{text-align:center;color:#8a90a0;font-size:13px;margin-top:16px}
+.chint{text-align:center;color:var(--ink-faint);font-size:13px;margin-top:16px}
 .sheet{position:fixed;inset:0;z-index:20;background:rgba(10,30,60,.6);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   padding:calc(var(--sat,env(safe-area-inset-top,0px)) + 16px) max(16px,var(--sar,env(safe-area-inset-right,0px))) 16px max(16px,var(--sal,env(safe-area-inset-left,0px)))}
 .sheet .box{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
@@ -675,9 +750,22 @@ input{-webkit-user-select:text;user-select:text}
   <div class="ui">
     <div class="bar">
       <button class="round gl" id="rvBack" aria-label="Close radar">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
-      <div class="title gl"><span id="rvCity">Radar</span><small>Precipitation</small></div>
+      <div class="rtools">
+        <button class="round gl" id="rvFind" aria-label="Search for a city"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></button>
+        <div class="zoom gl"><button id="rvOut" aria-label="Zoom out"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button><button id="rvIn" aria-label="Zoom in"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></div>
+        <button class="round gl" id="rvHome" aria-label="Back to this city"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M20 4L3 11l7 3 3 7z"/></svg></button>
+      </div>
+    </div>
+    <div class="rfind" id="rvFindBox" hidden>
+      <div class="rsearch gl"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>
+        <input id="rvQ" type="search" enterkeyhint="search" placeholder="Search for a city" autocomplete="off" aria-label="Search for a city"><button id="rvQx">Cancel</button></div>
+      <div class="rres gl" id="rvRes" hidden></div>
+    </div>
+    <div class="rlegend gl" aria-label="Precipitation scale">
+      <div class="h">Precipitation</div>
+      <div class="sc"><i></i><div><span>Extreme</span><span>Heavy</span><span>Moderate</span><span>Light</span></div></div>
     </div>
     <div class="msg gl" id="rvMsg" hidden></div>
     <div class="panel gl">
@@ -691,7 +779,6 @@ input{-webkit-user-select:text;user-select:text}
           </div>
         </div>
       </div>
-      <div class="legend"><span>Light</span><i></i><span>Heavy</span></div>
       <div class="credit">Radar & HRRR forecast via Iowa State Mesonet (NOAA) · Map © OpenFreeMap, OpenMapTiles, OpenStreetMap contributors</div>
     </div>
   </div>
@@ -752,10 +839,26 @@ input{-webkit-user-select:text;user-select:text}
 <script>
 (() => {
 const $ = id => document.getElementById(id);
+// Saved cities and settings live in the page's storage, and (in the Android app) a copy is kept in Android's own app
+// storage, which survives updates. When the page's copy is missing, it's restored from Android's.
+const KEEP = new Set(['places', 'place', 'idx', 'unit', 'halfHours', 'updSkip']);
+const kept = (() => { try { return window.AndroidApp && window.AndroidApp.kept ? JSON.parse(window.AndroidApp.kept()) : null; } catch { return null; } })();
+const keepCopy = (k, s) => { if (!KEEP.has(k)) return; try { window.AndroidApp && window.AndroidApp.keep && window.AndroidApp.keep(k, s); } catch {} };
 const store = {
-  get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
-  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+  get(k, d){
+    try {
+      let v = localStorage.getItem(k);
+      if (v == null && kept && kept[k] != null) { v = kept[k]; try { localStorage.setItem(k, v); } catch {} }   // restored after an update
+      return v ? JSON.parse(v) : d;
+    } catch { return d; }
+  },
+  set(k, v){ const s = JSON.stringify(v); try { localStorage.setItem(k, s); } catch {} keepCopy(k, s); }
 };
+// first run with the Android copy: back up what the page already has, so it's safe from the next update on
+if (kept) KEEP.forEach(k => { try { const v = localStorage.getItem(k); if (v != null && kept[k] == null) keepCopy(k, v); } catch {} });
+// nothing saved anywhere but the widget still knows its city: start from that instead of an empty list
+if (kept && kept.widgetPlace) { try { if (localStorage.getItem('places') == null && localStorage.getItem('place') == null) {
+  const w = JSON.parse(kept.widgetPlace); store.set('places', w); store.set('place', w[0]); store.set('idx', 0); } } catch {} }
 let unit = store.get('unit', 'F');
 let place = store.get('place', null);
 let data = null;
@@ -1038,8 +1141,8 @@ function moonPhase(when = new Date()){
 // The lit part as an SVG path in a 30x30 box: a half disc on the sunlit side, closed by the terminator (an ellipse
 // whose width shrinks to nothing at quarter moon). Waxing is lit on the right as seen from the northern hemisphere;
 // south of the equator it is mirrored.
-function moonSvg(lat){
-  const {lit, waxing} = moonPhase(), c = 15, R = 13.5, rx = R * Math.abs(1 - 2 * lit), crescent = lit < .5;
+function moonSvg(lat, when){
+  const {lit, waxing} = moonPhase(when), c = 15, R = 13.5, rx = R * Math.abs(1 - 2 * lit), crescent = lit < .5;
   const right = waxing === (lat >= 0);
   const path = right
     ? `M${c},${c - R}A${R},${R} 0 0 1 ${c},${c + R}A${rx},${R} 0 0 ${crescent ? 0 : 1} ${c},${c - R}Z`
@@ -1048,6 +1151,65 @@ function moonSvg(lat){
     (lit > .005 ? `<path d="${path}" fill="rgba(255,248,222,.85)"/>` : '') + `</svg>`;
 }
 window.__moon = () => moonPhase();   // test hook
+
+// ---- moonrise and moonset ----
+// The forecast service doesn't give moon times, so they're computed here from the date and place: the moon's position
+// from the standard lunar theory, then each hour of the day is checked for the moment it crosses the horizon.
+// Checked against the US Naval Observatory's published times.
+const MOON = (() => {
+  // The moon's position from the main terms of the standard lunar theory (Meeus, Astronomical Algorithms ch. 47),
+  // accurate to a minute or two for rise and set. d is days since J2000.
+  const rad = Math.PI / 180, J1970 = 2440587.5, J2000 = 2451545;
+  const days = ms => ms / 864e5 + J1970 - J2000;
+  const sin = x => Math.sin(x * rad), cos = x => Math.cos(x * rad);
+  // geometric altitude above the moon's own rising altitude (radians): crossing 0 is the moment it rises or sets
+  const altitude = (ms, lat, lon) => {
+    const d = days(ms);
+    const L = 218.3164477 + 13.17639648 * d, D = 297.8501921 + 12.19074912 * d, M = 357.5291092 + 0.98560028 * d;
+    const Mm = 134.9633964 + 13.06499295 * d, F = 93.272095 + 13.22935024 * d;
+    const lam = L + 6.289 * sin(Mm) + 1.274 * sin(2 * D - Mm) + .658 * sin(2 * D) + .214 * sin(2 * Mm) - .186 * sin(M) - .114 * sin(2 * F)
+      + .059 * sin(2 * D - 2 * Mm) + .057 * sin(2 * D - M - Mm) + .053 * sin(2 * D + Mm) + .046 * sin(2 * D - M) - .041 * sin(M - Mm)
+      - .035 * sin(D) - .031 * sin(M + Mm);
+    const bet = 5.128 * sin(F) + .281 * sin(Mm + F) + .278 * sin(Mm - F) + .173 * sin(2 * D - F) + .055 * sin(2 * D - Mm + F) + .046 * sin(2 * D - Mm - F);
+    const par = .9508 + .0518 * cos(Mm) + .0095 * cos(2 * D - Mm) + .0078 * cos(2 * D) + .0028 * cos(2 * Mm);   // horizontal parallax (deg)
+    const eps = 23.4393 - 3.563e-7 * d;
+    const ra = Math.atan2(sin(lam) * cos(eps) - Math.tan(bet * rad) * sin(eps), cos(lam));
+    const dec = Math.asin(sin(bet) * cos(eps) + cos(bet) * sin(eps) * sin(lam));
+    const H = (280.46061837 + 360.98564736629 * d + lon) * rad - ra, phi = lat * rad;
+    const h = Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H));
+    return h - (.7275 * par - .5667) * rad;          // the rim touches the horizon: parallax, its size and the air's bending
+  };
+  // rise and set in the 24 hours from t0 (ms), or null when it doesn't happen that day
+  const times = (t0, lat, lon) => {
+    const at = hr => altitude(t0 + hr * 36e5, lat, lon);
+    let h0 = at(0), rise = null, set = null;
+    for (let i = 1; i <= 24; i += 2) {
+      const h1 = at(i), h2 = at(i + 1), a = (h0 + h2) / 2 - h1, b = (h2 - h0) / 2, xe = -b / (2 * a), ye = (a * xe + b) * xe + h1;
+      const disc = b * b - 4 * a * h1; let roots = 0, x1 = 0, x2 = 0;
+      if (disc >= 0) { const dx = Math.sqrt(disc) / (Math.abs(a) * 2); x1 = xe - dx; x2 = xe + dx; if (Math.abs(x1) <= 1) roots++; if (Math.abs(x2) <= 1) roots++; if (x1 < -1) x1 = x2; }
+      if (roots === 1) { if (h0 < 0) rise = i + x1; else set = i + x1; }
+      else if (roots === 2) { rise = i + (ye < 0 ? x2 : x1); set = i + (ye < 0 ? x1 : x2); }
+      if (rise != null && set != null) break;
+      h0 = h2;
+    }
+    return {rise: rise == null ? null : t0 + rise * 36e5, set: set == null ? null : t0 + set * 36e5};
+  };
+  return {times, altitude};
+})();
+// Yesterday's, today's and tomorrow's rises and sets at the place, in time order (ms). dayStart is the place's midnight.
+function moonEvents(lat, lon, dayStart){
+  const ev = [];
+  for (const k of [-1, 0, 1]) {
+    const r = MOON.times(dayStart + k * 864e5, lat, lon);
+    if (r.rise != null) ev.push({t: r.rise, rise: true});
+    if (r.set != null) ev.push({t: r.set, rise: false});
+  }
+  return ev.sort((a, b) => a.t - b.t);
+}
+const phaseName = ({lit, waxing}) => lit < .03 ? 'New moon' : lit > .97 ? 'Full moon'
+  : lit < .47 ? (waxing ? 'Waxing crescent' : 'Waning crescent') : lit <= .53 ? (waxing ? 'First quarter' : 'Last quarter')
+  : (waxing ? 'Waxing gibbous' : 'Waning gibbous');
+window.__moonTimes = (lat, lon, iso, tz = 0) => { const [y, m, d] = iso.split('-').map(Number); return MOON.times(Date.UTC(y, m - 1, d) - tz * 36e5, lat, lon); };   // test hook (tz = the place's UTC offset in hours)
 
 // ---- clear night sky ----
 // Stars are drawn once into three layers; each layer twinkles on its own CSS clock (GPU only, no per-frame work).
@@ -1782,12 +1944,27 @@ onmessage = async e => {
     const cv = new OffscreenCanvas(W, H), cx = cv.getContext('2d', {willReadFrequently: true});
     cx.drawImage(bmp, 0, 0);
     const img = cx.getImageData(0, 0, W, H), d = img.data;
+    // The radar arrives in the weather service's standard colors (greens for light rain, yellow, orange, red, then
+    // magenta for the heaviest, white for extreme). Each pixel's color is turned back into how heavy the rain is
+    // (0 = light, 1 = extreme) and repainted on one smooth scale: blue, purple, pink, yellow, white.
+    const STOPS = [[0, 32, 96, 255], [.3, 92, 82, 255], [.5, 176, 72, 232], [.66, 244, 92, 170], [.8, 255, 212, 64], [1, 255, 255, 255]];
+    const paint = t => { let k = 1; while (k < STOPS.length - 1 && STOPS[k][0] < t) k++; const a = STOPS[k - 1], b = STOPS[k], u = (t - a[0]) / (b[0] - a[0]);
+      return [a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u, a[3] + (b[3] - a[3]) * u]; };
     for (let i = 0; i < d.length; i += 4) {
       if (!d[i + 3]) continue;
       const r = d[i], g = d[i + 1], b = d[i + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-      const sat = mx ? (mx - mn) / mx : 0;
-      const blueish = b === mx && b > g + 25 && r < 120;      // cyan/blue bands: below light rain
-      if (sat < .55 || blueish) d[i + 3] = 0;                  // grayish: drizzle, dust, clutter
+      const sat = mx ? (mx - mn) / mx : 0, v = mx / 255;
+      let t = -1;
+      if (v > .88 && sat < .22) t = 1;                                     // white: extreme
+      else if (sat >= .55 && !(b === mx && b > g + 25 && r < 120)) {       // grays and the cyan/blue bands below light rain are dropped
+        const c = mx - mn; let h = mx === r ? ((g - b) / c) % 6 : mx === g ? (b - r) / c + 2 : (r - g) / c + 4; h = (h * 60 + 360) % 360;
+        t = h >= 75 && h < 170 ? .06 + .32 * (1 - v)                       // greens: the darker, the heavier
+          : h >= 45 && h < 75 ? .5 : h >= 18 && h < 45 ? .62
+          : h < 18 || h >= 345 ? .72 + .1 * (1 - v) : h >= 250 ? .9 : -1;
+      }
+      if (t < 0) { d[i + 3] = 0; continue; }
+      const [R, G, B] = paint(t);
+      d[i] = R; d[i + 1] = G; d[i + 2] = B; d[i + 3] = 255 * (.62 + .38 * t);
     }
     cx.putImageData(img, 0, 0);
     const out = new OffscreenCanvas(W, H), ox = out.getContext('2d');
@@ -1819,7 +1996,34 @@ const inUS = p => p && p.lat > 20 && p.lat < 53 && p.lon > -130 && p.lon < -60; 
 // map: OpenFreeMap "Liberty" (free, no key) drawn with MapLibre; rain goes under the place names
 const MAP_LIGHT = 'https://tiles.openfreemap.org/styles/liberty', MAP_DARK = 'https://tiles.openfreemap.org/styles/dark';
 let isDark = matchMedia('(prefers-color-scheme: dark)').matches;
-const mapStyle = () => isDark ? MAP_DARK : MAP_LIGHT;
+const mapStyle = () => MAP_DARK;   // the radar always uses the muted dark map (see mapLook), so the rain stands out
+// Mutes the dark map to soft greys like a weather radar: grey land, darker water, faint borders, highways barely
+// there, labels only for towns and cities; roads, buildings and other detail are hidden.
+function mapLook(map){
+  const L = map.getStyle()?.layers || [];
+  const set = (id, k, v) => { try { map.setPaintProperty(id, k, v); } catch {} };
+  const hide = id => { try { map.setLayoutProperty(id, 'visibility', 'none'); } catch {} };
+  L.forEach(l => {
+    const id = l.id;
+    if (l.type === 'background') set(id, 'background-color', '#45464a');
+    else if (id === 'water') set(id, 'fill-color', '#2e2f33');
+    else if (id === 'waterway') set(id, 'line-color', '#35363a');
+    else if (/^(landcover|landuse)/.test(id)) set(id, 'fill-opacity', .18);
+    else if (/^(building|aeroway|road_|railway|highway_path|highway_minor|highway_major_casing|highway_motorway_casing|road_oneway|highway_name|place_other|place_suburb|place_village)/.test(id)) hide(id);
+    else if (/^highway_(major|motorway)/.test(id)) { set(id, 'line-color', '#5c5d62'); set(id, 'line-opacity', .55); }
+    else if (id === 'boundary_state') { set(id, 'line-color', '#7a7b80'); set(id, 'line-opacity', .55); }
+    else if (/^boundary_country/.test(id)) { set(id, 'line-color', '#8d8e93'); set(id, 'line-opacity', .8); }
+    else if (map === big && /^place_(town|city)/.test(id)) {
+      try { map.setLayerZoomRange(id, CITY_PINS_UNTIL, 24); } catch {}   // zoomed out, the city pins name them instead
+      set(id, 'text-color', '#f2f3f5'); set(id, 'text-halo-color', 'rgba(20,21,24,.75)'); set(id, 'text-halo-width', 1.4);
+      try { map.setLayoutProperty(id, 'text-transform', 'none'); } catch {}
+    }
+    else if (l.type === 'symbol') {
+      set(id, 'text-color', /water/.test(id) ? '#8e9196' : '#f2f3f5'); set(id, 'text-halo-color', 'rgba(20,21,24,.75)'); set(id, 'text-halo-width', 1.4);
+      try { map.setLayoutProperty(id, 'text-transform', 'none'); } catch {}       // "Denver", not "DENVER"
+    }
+  });
+}
 // The app tells the page whether the phone is in dark mode (and again when it changes)
 window.__setDark = on => {
   on = !!on; const changed = on !== isDark; isDark = on;
@@ -1835,6 +2039,72 @@ document.documentElement.classList.toggle('dark', isDark);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => { if (!window.AndroidApp) window.__setDark(e.matches); });
 const clockOf = t => new Date(t * 1000).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
 const meEl = () => { const e = document.createElement('div'); e.innerHTML = '<div class="me"></div>'; return e; };
+// a temperature pin: the big one (with the weather icon and a pointer) marks this city, small ones the other saved cities
+const pinEl = big => { const e = document.createElement('div'); e.className = 'tpin' + (big ? ' main' : ''); return e; };
+function fillPin(el, temp, kind, day, label){
+  el.innerHTML = el.classList.contains('main')
+    ? `<div class="b"><b>${temp}°</b>${icon(kind, day)}</div><i class="tail"></i><i class="dot"></i>${label ? `<span class="nm">${esc(label)}</span>` : ''}`
+    : `<div class="b"><b>${temp}</b></div><span class="nm">${esc(label)}</span>`;
+}
+let otherPins = [];
+// Major US cities (the radar covers the US): [name, lat, lon, tier]. Far out only tier 1 shows; more fill in as you zoom.
+const MAJOR = [
+  ['Seattle',47.61,-122.33,1],['San Francisco',37.77,-122.42,1],['Los Angeles',34.05,-118.24,1],['Las Vegas',36.17,-115.14,1],['Phoenix',33.45,-112.07,1],
+  ['Salt Lake City',40.76,-111.89,1],['Denver',39.74,-104.99,1],['Dallas',32.78,-96.8,1],['Houston',29.76,-95.37,1],['Kansas City',39.1,-94.58,1],
+  ['Minneapolis',44.98,-93.27,1],['Chicago',41.88,-87.63,1],['New Orleans',29.95,-90.07,1],['Atlanta',33.75,-84.39,1],['Miami',25.76,-80.19,1],
+  ['Washington',38.91,-77.04,1],['New York',40.71,-74.01,1],['Boston',42.36,-71.06,1],
+  ['Portland',45.52,-122.68,2],['Sacramento',38.58,-121.49,2],['San Diego',32.72,-117.16,2],['Boise',43.62,-116.2,2],['Billings',45.78,-108.5,2],
+  ['Albuquerque',35.08,-106.65,2],['El Paso',31.76,-106.49,2],['Cheyenne',41.14,-104.82,2],['Fargo',46.88,-96.79,2],['Omaha',41.26,-95.93,2],
+  ['Oklahoma City',35.47,-97.52,2],['San Antonio',29.42,-98.49,2],['Austin',30.27,-97.74,2],['St. Louis',38.63,-90.2,2],['Memphis',35.15,-90.05,2],
+  ['Milwaukee',43.04,-87.91,2],['Nashville',36.16,-86.78,2],['Birmingham',33.52,-86.8,2],['Indianapolis',39.77,-86.16,2],['Louisville',38.25,-85.76,2],
+  ['Detroit',42.33,-83.05,2],['Cleveland',41.5,-81.69,2],['Charlotte',35.23,-80.84,2],['Jacksonville',30.33,-81.66,2],['Tampa',27.95,-82.46,2],
+  ['Pittsburgh',40.44,-80,2],['Raleigh',35.78,-78.64,2],['Philadelphia',39.95,-75.17,2],
+  ['Spokane',47.66,-117.43,3],['Reno',39.53,-119.81,3],['Fresno',36.74,-119.79,3],['Tucson',32.22,-110.97,3],['Flagstaff',35.2,-111.65,3],
+  ['Great Falls',47.5,-111.3,3],['Grand Junction',39.06,-108.55,3],['Santa Fe',35.69,-105.94,3],['Colorado Springs',38.83,-104.82,3],['Fort Collins',40.59,-105.08,3],
+  ['Pueblo',38.25,-104.61,3],['Rapid City',44.08,-103.23,3],['Bismarck',46.81,-100.78,3],['Amarillo',35.22,-101.83,3],['Lubbock',33.58,-101.86,3],
+  ['Sioux Falls',43.55,-96.73,3],['Wichita',37.69,-97.34,3],['Tulsa',36.15,-95.99,3],['Fort Worth',32.76,-97.33,3],['Des Moines',41.59,-93.62,3],
+  ['Shreveport',32.53,-93.75,3],['Little Rock',34.75,-92.29,3],['Baton Rouge',30.45,-91.15,3],['Madison',43.07,-89.4,3],['Jackson',32.3,-90.18,3],
+  ['Grand Rapids',42.96,-85.67,3],['Columbus',39.96,-83,3],['Cincinnati',39.1,-84.51,3],['Knoxville',35.96,-83.92,3],['Orlando',28.54,-81.38,3],
+  ['Savannah',32.08,-81.09,3],['Charleston',32.78,-79.93,3],['Richmond',37.54,-77.44,3],['Buffalo',42.89,-78.88,3],['Albany',42.65,-73.76,3]];
+const TIER_ZOOM = {1: 0, 2: 5, 3: 6.3}, CITY_PINS_UNTIL = 8.3;     // past this zoom the map's own town names take over
+let majorPins = [], majorTemps = null, majorAt = 0;
+const nearSaved = (la, lo) => places.some(p => Math.abs(+p.lat - la) < .25 && Math.abs(+p.lon - lo) < .3);
+function showMajorByZoom(){
+  if (!big) return;
+  const z = big.getZoom();
+  majorPins.forEach(m => { const t = m._tier; m.getElement().style.display = z >= TIER_ZOOM[t] && z < CITY_PINS_UNTIL ? '' : 'none'; });
+}
+async function majorCityPins(){
+  if (!big) return;
+  // one request for every city's current temperature, refreshed at most every 15 minutes
+  if (!majorTemps || Date.now() - majorAt > 15 * 60 * 1000) {
+    try {
+      const q = new URLSearchParams({latitude: MAJOR.map(c => c[1]).join(','), longitude: MAJOR.map(c => c[2]).join(','), current: 'temperature_2m'});
+      const j = await (await fetch('https://api.open-meteo.com/v1/forecast?' + q)).json();
+      majorTemps = (Array.isArray(j) ? j : [j]).map(x => x?.current?.temperature_2m); majorAt = Date.now();
+    } catch { return; }
+  }
+  majorPins.forEach(m => m.remove()); majorPins = [];
+  MAJOR.forEach(([name, la, lo, tier], i) => {
+    if (majorTemps[i] == null || nearSaved(la, lo)) return;          // saved cities already have their own pins
+    const el = pinEl(false); fillPin(el, tf(majorTemps[i]), '', true, name);
+    const m = new maplibregl.Marker({element: el, anchor: 'top'}).setLngLat([lo, la]).addTo(big); m._tier = tier;
+    majorPins.push(m);
+  });
+  showMajorByZoom();
+}
+function placePins(){
+  if (!big || !data) return;
+  const c = data.current, [, kind] = cond(c.weather_code);
+  fillPin(bigMe.getElement(), tf(c.temperature_2m), kind, !!c.is_day, place.home ? 'My Location' : '');   // the map already names the city
+  bigMe.setLngLat([place.lon, place.lat]);
+  otherPins.forEach(m => m.remove()); otherPins = [];
+  places.filter(p => placeKey(p) !== placeKey(place)).forEach(p => summary(p).then(j => {
+    if (!j || !j.current || !big) return;
+    const el = pinEl(false); fillPin(el, tf(j.current.temperature_2m), '', true, p.name);
+    otherPins.push(new maplibregl.Marker({element: el, anchor: 'top'}).setLngLat([+p.lon, +p.lat]).addTo(big));
+  }).catch(() => {}));
+}
 function addRadar(map, id, url, opacity){
   if (map.getLayer(id)) map.removeLayer(id);
   if (map.getSource(id)) map.removeSource(id);
@@ -1854,6 +2124,7 @@ async function miniRadar(){
   if (mini && mini.getContainer() !== el) { mini.remove(); mini = null; }
   if (!mini) {
     mini = new maplibregl.Map({container: el, style: mapStyle(), center: [place.lon, place.lat], zoom: 6.6, interactive: false, attributionControl: false, fadeDuration: 0});
+    mini.on('style.load', () => mapLook(mini));
     miniMe = new maplibregl.Marker({element: meEl()}).setLngLat([place.lon, place.lat]).addTo(mini);
   }
   mini.jumpTo({center: [place.lon, place.lat], zoom: 6.6}); miniMe.setLngLat([place.lon, place.lat]);
@@ -1875,7 +2146,7 @@ async function miniRadar(){
   try {
     const fr = await radarList(); if (!fr.length || !mini) return;
     await whenReady(mini);
-    addRadar(mini, 'latest', fr[0].url, .75);
+    addRadar(mini, 'latest', fr[0].url, .9);
     $('radarWhen').textContent = `Radar ${clockOf(fr[0].time)}`;
     if (!inUS(place)) $('radarNote').textContent = 'Radar and forecast cover the US only';
   } catch { $('radarNote').textContent = 'Radar is unavailable right now'; }
@@ -1891,7 +2162,7 @@ function radarHourIndex(hour){
 function showFrame(i){
   if (!nFrames || !big) return;
   frameI = i;
-  for (let k = 0; k < nFrames; k++) if (big.getLayer('f' + k)) big.setPaintProperty('f' + k, 'raster-opacity', k === i ? .75 : 0);
+  for (let k = 0; k < nFrames; k++) if (big.getLayer('f' + k)) big.setPaintProperty('f' + k, 'raster-opacity', k === i ? .92 : 0);
   const f = radarFrames[i], n = nFrames - 1;
   $('rvTime').textContent = i === 0 ? `Now · ${clockOf(f.time)}` : clockOf(f.time);
   const mins = Math.round((f.time - radarFrames[0].time) / 60), h = Math.floor(mins / 60), mm = mins % 60;
@@ -1921,8 +2192,10 @@ function ensureBig(){
   const rv = $('rv'); rv.hidden = false; rv.classList.add('parked');
   big = new maplibregl.Map({container: 'rmap', style: mapStyle(), center: [place.lon, place.lat], zoom: 6.6, minZoom: 3, maxZoom: 11,
     attributionControl: false, dragRotate: false, pitchWithRotate: false, touchPitch: false, fadeDuration: 0});
+  big.on('style.load', () => mapLook(big));
+  big.on('zoom', showMajorByZoom);
   big.touchZoomRotate.disableRotation();
-  bigMe = new maplibregl.Marker({element: meEl()}).setLngLat([place.lon, place.lat]).addTo(big);
+  bigMe = new maplibregl.Marker({element: pinEl(true), anchor: 'bottom'}).setLngLat([place.lon, place.lat]).addTo(big);
 }
 async function openRadar(){
   if (!window.maplibregl) return;
@@ -1931,9 +2204,8 @@ async function openRadar(){
   rv.classList.remove('settled', 'closing');
   rv.style.transition = 'none'; rv.style.clipPath = cardClip();
   rv.hidden = false; rv.classList.remove('parked');
-  $('rvCity').textContent = place ? place.name : 'Radar';
-  try { window.AndroidApp && window.AndroidApp.lightPage(!isDark); } catch {}
-  big.jumpTo({center: [place.lon, place.lat], zoom: 6.6}); bigMe.setLngLat([place.lon, place.lat]);
+  try { window.AndroidApp && window.AndroidApp.lightPage(false); } catch {}   // white status-bar icons over the dark map
+  big.jumpTo({center: [place.lon, place.lat], zoom: 6.6}); placePins(); majorCityPins(); closeFind();
   $('rvMsg').hidden = true;
   requestAnimationFrame(() => requestAnimationFrame(() => {
     rv.style.transition = ''; rv.style.clipPath = 'inset(0px 0px 0px 0px round 0px)';
@@ -1966,6 +2238,42 @@ function closeRadar(){
   try { window.AndroidApp && window.AndroidApp.lightPage(false); } catch {}
 }
 $('rvBack').onclick = closeRadar;
+$('rvIn').onclick = () => big && big.zoomIn({duration: 250});
+// ---- radar search: find a city, fly there, and show its temperature ----
+let findT = 0, findSeq = 0, foundPin = null;
+const findOpen = () => !$('rvFindBox').hidden;
+function openFind(){ $('rv').classList.add('finding'); $('rvFindBox').hidden = false; $('rvQ').value = ''; $('rvRes').hidden = true; setTimeout(() => $('rvQ').focus(), 50); }
+function closeFind(){ if (!$('rvFindBox')) return; $('rv').classList.remove('finding'); $('rvFindBox').hidden = true; $('rvRes').hidden = true; $('rvQ').blur(); }
+$('rvFind').onclick = openFind;
+$('rvQx').onclick = closeFind;
+$('rvQ').addEventListener('input', () => {
+  clearTimeout(findT);
+  const q = $('rvQ').value.trim(), seq = ++findSeq;
+  if (q.length < 2) { $('rvRes').hidden = true; return; }
+  findT = setTimeout(async () => {
+    let list = [];
+    try { list = (await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?count=6&language=en&name=${encodeURIComponent(q)}`)).json()).results || []; } catch {}
+    if (seq !== findSeq) return;                                        // a newer search has started
+    const res = $('rvRes'); res.hidden = false;
+    res.innerHTML = list.length ? list.map((r, i) => `<button data-i="${i}"><b>${esc(r.name)}</b><small>${esc([r.admin1, r.country].filter(Boolean).join(', '))}</small></button>`).join('')
+      : '<div class="none">No cities found</div>';
+    res.querySelectorAll('button').forEach(b => b.onclick = () => goFound(list[+b.dataset.i]));
+  }, 280);
+});
+$('rvQ').addEventListener('keydown', e => { if (e.key === 'Enter') { const b = $('rvRes').querySelector('button'); if (b) b.click(); } if (e.key === 'Escape') closeFind(); });
+async function goFound(r){
+  closeFind(); if (!big || !r) return;
+  big.flyTo({center: [r.longitude, r.latitude], zoom: 7.4, duration: 900});
+  if (foundPin) { foundPin.remove(); foundPin = null; }
+  // a found city that's also a major city: its regular pin steps aside for the highlighted one
+  majorPins.forEach(m => { const ll = m.getLngLat(); m.getElement().classList.toggle('dup', Math.abs(ll.lat - r.latitude) < .2 && Math.abs(ll.lng - r.longitude) < .25); });
+  const p = {name: r.name, lat: r.latitude, lon: r.longitude}, j = await summary(p).catch(() => null);
+  if (!j || !j.current || !big) return;
+  const el = pinEl(false); el.classList.add('found'); fillPin(el, tf(j.current.temperature_2m), '', true, r.name);
+  foundPin = new maplibregl.Marker({element: el, anchor: 'top'}).setLngLat([r.longitude, r.latitude]).addTo(big);
+}
+$('rvOut').onclick = () => big && big.zoomOut({duration: 250});
+$('rvHome').onclick = () => big && place && big.easeTo({center: [place.lon, place.lat], zoom: 6.6, duration: 500});
 $('rvPlay').onclick = () => setPlaying(!playing);
 $('rvSlider').addEventListener('input', e => { setPlaying(false); showFrame(+e.target.value); });
 $('rvHours').addEventListener('click', e => {
@@ -2054,8 +2362,13 @@ function sunPanel(d, c){
   const isDay = f >= 0 && f <= 1;
   const sx = X(clamp01(f)), sy = Y(f);
   const hrs = Math.floor(day / 60), mn = day % 60;
-  return `<section class="sun anim${SEEN.has('sun') ? ' in' : ''}" data-a="sun" data-f="${clamp01(f)}">
-    <div class="hd"><span class="k">Sunrise &amp; sunset</span><span class="dl">${hrs} h ${mn} m of daylight</span></div>
+  const moon = moonView(d), night = !c.is_day;
+  // one card, two views: the sun by day and the moon at night (either can be picked with the tabs)
+  return `<section class="sun anim${SEEN.has('sun') ? ' in' : ''}${night ? ' mv' : ''}" data-a="sun" data-f="${clamp01(f)}" role="button" tabindex="0" aria-label="Sun and moon times this week">
+    <div class="hd"><div class="seg" role="tablist" aria-label="Sun or moon">
+        <button role="tab" data-v="sun" aria-selected="${!night}">Sun</button><button role="tab" data-v="moon" aria-selected="${night}">Moon</button></div>
+      <span class="dl vs">${hrs} h ${mn} m of daylight</span><span class="dl vm">${moon.info}</span></div>
+    <div class="vs">
     <svg viewBox="0 0 340 112">
       <defs><linearGradient id="sunPath" x1="0" x2="1"><stop offset="0" stop-color="#ffd27a" stop-opacity=".2"/><stop offset="1" stop-color="#ffd27a"/></linearGradient></defs>
       <line x1="8" y1="96" x2="332" y2="96" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
@@ -2065,8 +2378,130 @@ function sunPanel(d, c){
               : `<path transform="translate(${f < 0 ? 24 : 316} 84)" d="M3 -9a9 9 0 1 0 8 13 7 7 0 0 1 -8 -13z" fill="#f3eecb"/>`}
     </svg>
     <div class="times"><div>Sunrise<b>${hhmm(d.sunrise[0])}</b></div><div>Sunset<b>${hhmm(d.sunset[0])}</b></div></div>
+    </div>
+    <div class="vm">${moon.html}</div>
   </section>`;
 }
+// The moon's view: its arc from rising to setting with the moon (in tonight's phase) where it is now, the rise and set
+// times, its phase and how much of it is lit. Times are the place's own clock, like the forecast's.
+function moonView(d){
+  const lat = +place.lat, lon = +place.lon, off = (data.utc_offset_seconds || 0) * 1000;
+  const [y, m, dd] = d.time[0].split('-').map(Number), dayStart = Date.UTC(y, m - 1, dd) - off, now = Date.now();
+  const ev = moonEvents(lat, lon, dayStart), ph = moonPhase(new Date(now));
+  const info = `${phaseName(ph)} · ${Math.round(ph.lit * 100)}% lit`;
+  const lastRise = [...ev].reverse().find(e => e.rise && e.t <= now), lastSet = [...ev].reverse().find(e => !e.rise && e.t <= now);
+  const up = !!lastRise && (!lastSet || lastRise.t > lastSet.t);
+  const rise = up ? lastRise.t : ev.find(e => e.rise && e.t > now)?.t ?? null;
+  const set = rise != null ? ev.find(e => !e.rise && e.t > rise)?.t ?? null : null;
+  const clockAt = t => { const x = new Date(t + off + 3e4), h = x.getUTCHours(), mi = String(x.getUTCMinutes()).padStart(2, '0'); return `${h % 12 || 12}:${mi} ${h < 12 ? 'AM' : 'PM'}`; };
+  const dayWord = t => { const k = Math.floor((t - dayStart) / 864e5); return k < 0 ? 'Yesterday' : k > 0 ? 'Tomorrow' : ''; };
+  const when = t => t == null ? '<b>—</b>' : `<b>${clockAt(t)}</b>${dayWord(t) ? `<small>${dayWord(t)}</small>` : ''}`;
+  if (rise == null && set == null) return {info, html: `<div class="mnone">The moon doesn't rise or set here today.</div>`};
+  const f = up && set ? clamp01((now - rise) / (set - rise)) : 0;
+  const X = t => 24 + 292 * t, Y = t => 96 - 76 * Math.sin(Math.PI * clamp01(t));
+  const pts = Array.from({length: 49}, (_, i) => { const t = i / 48; return `${X(t).toFixed(1)},${Y(t).toFixed(1)}`; });
+  const trail = up ? Array.from({length: Math.round(f * 48) + 1}, (_, i) => { const t = Math.min(f, i / 48); return `${X(t).toFixed(1)},${Y(t).toFixed(1)}`; }).join(' ') : '';
+  const span = rise != null && set != null ? set - rise : 0, uh = Math.floor(span / 36e5), um = Math.round(span % 36e5 / 6e4);
+  const glyph = moonSvg(lat).replace('<svg ', `<svg x="-13" y="-13" width="26" height="26" `);
+  return {info, html: `
+    <svg viewBox="0 0 340 112">
+      <defs><linearGradient id="moonPath" x1="0" x2="1"><stop offset="0" stop-color="#d9defa" stop-opacity=".2"/><stop offset="1" stop-color="#e8ecff"/></linearGradient></defs>
+      <line x1="8" y1="96" x2="332" y2="96" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+      <polyline points="${pts.join(' ')}" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="2" stroke-dasharray="3 5" stroke-linecap="round"/>
+      ${trail ? `<polyline points="${trail}" fill="none" stroke="url(#moonPath)" stroke-width="3" stroke-linecap="round"/>` : ''}
+      <g transform="translate(${up ? X(f) : 24} ${up ? Y(f) : 84})" opacity="${up ? 1 : .55}"><circle r="14" fill="rgba(220,226,255,${up ? .16 : 0})"/>${glyph}</g>
+    </svg>
+    <div class="times"><div>Moonrise${when(rise)}</div>${span ? `<div class="mid">Up ${uh} h ${um} m</div>` : ''}<div>Moonset${when(set)}</div></div>`};
+}
+// switching the card between the sun and the moon
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('.sun .seg button'); if (!b) return;
+  const card = b.closest('.sun'), moon = b.dataset.v === 'moon';
+  card.classList.toggle('mv', moon);
+  card.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+});
+
+// ---- the week's sun and moon: tap the card for the next seven days ----
+let ssheet = null;
+// a time (ms) on the place's own clock, rounded to the minute, as "6:52 AM"
+const placeClock = t => { const x = new Date(t + (data.utc_offset_seconds || 0) * 1000 + 3e4), h = x.getUTCHours(); return `${h % 12 || 12}:${String(x.getUTCMinutes()).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
+const dur = m => `${Math.floor(m / 60)} h ${Math.round(m % 60)} m`;
+// a 24-hour bar with the hours the sun (or moon) is up lit; segments are [from, to] in minutes after midnight
+const dayBar = (segs, cls) => `<div class="wbar ${cls}">${segs.map(([a, b]) => `<i style="left:${(a / 14.4).toFixed(2)}%;width:${((b - a) / 14.4).toFixed(2)}%"></i>`).join('')}<span class="noon"></span></div>`;
+function skyWeekRows(view){
+  const d = data.daily, n = Math.min(7, d.time.length), lat = +place.lat, lon = +place.lon, off = (data.utc_offset_seconds || 0) * 1000;
+  const rows = [];
+  for (let i = 0; i < n; i++) {
+    const iso = d.time[i], name = dayName(iso, i), date = md(iso);
+    if (view === 'sun') {
+      const r = mins(d.sunrise[i]), st = mins(d.sunset[i]), len = st - r, prev = i ? mins(d.sunset[i - 1]) - mins(d.sunrise[i - 1]) : null;
+      const ch = prev == null ? '' : Math.round(len - prev), chTxt = ch === '' ? '' : ch === 0 ? 'same' : `${ch > 0 ? '+' : '−'}${Math.abs(ch)} m`;
+      rows.push(`<div class="wrow"><div class="wd"><b>${name}</b><small>${date}</small></div>
+        <div class="wt">${hhmm(d.sunrise[i])}<small>Sunrise</small></div><div class="wt">${hhmm(d.sunset[i])}<small>Sunset</small></div>
+        <div class="wl">${dur(len)}<small class="${ch > 0 ? 'up' : ch < 0 ? 'dn' : ''}">${chTxt || 'daylight'}</small></div>
+        ${dayBar([[r, st]], 'sunb')}</div>`);
+    } else {
+      const [y, m, dd] = iso.split('-').map(Number), start = Date.UTC(y, m - 1, dd) - off, t = MOON.times(start, lat, lon);
+      const ph = moonPhase(new Date(start + 12 * 36e5)), at = x => (x - start) / 6e4;
+      let segs = [];
+      if (t.rise != null && t.set != null) segs = t.set > t.rise ? [[at(t.rise), at(t.set)]] : [[0, at(t.set)], [at(t.rise), 1440]];
+      else if (t.rise != null) segs = [[at(t.rise), 1440]];
+      else if (t.set != null) segs = [[0, at(t.set)]];
+      else if (MOON.altitude(start + 12 * 36e5, lat, lon) > 0) segs = [[0, 1440]];     // up all day
+      rows.push(`<div class="wrow"><div class="wd"><b>${name}</b><small>${date}</small></div>
+        ${[[t.rise, 'Moonrise'], [t.set, 'Moonset']].sort((p, q) => (p[0] ?? Infinity) - (q[0] ?? Infinity))      // in the order they happen that day
+          .map(([x, lab]) => `<div class="wt">${x != null ? placeClock(x) : '—'}<small>${x != null ? lab : 'No ' + lab.toLowerCase()}</small></div>`).join('')}
+        <div class="wl wm">${moonSvg(lat, new Date(start + 12 * 36e5))}<span>${Math.round(ph.lit * 100)}%<small>${phaseName(ph).replace(/ moon$/, '')}</small></span></div>
+        ${dayBar(segs, 'moonb')}</div>`);
+    }
+  }
+  return rows.join('');
+}
+function renderSkyWeek(view){
+  const panel = ssheet.querySelector('.dpanel'), moon = view === 'moon';
+  panel.innerHTML = `<div class="grab"></div>
+    <div class="dnav"><button class="round" id="sClose" aria-label="Close"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="dhead">${moon ? `<span class="mi">${moonSvg(+place.lat)}</span>` : icon('clear', true)}
+      <div class="tt"><div class="dn">${moon ? 'The moon this week' : 'The sun this week'}</div><div class="dc">${esc(place.name)}</div></div></div>
+    <div class="dchips" role="tablist"><button role="tab" data-v="sun" class="${moon ? '' : 'on'}" aria-selected="${!moon}">Sunrise &amp; sunset</button><button role="tab" data-v="moon" class="${moon ? 'on' : ''}" aria-selected="${moon}">Moonrise &amp; moonset</button></div>
+    <div class="wscale"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>12 AM</span></div>
+    <div class="wk">${skyWeekRows(view)}</div>
+    <div class="dabout">${moon ? 'Bars show when the moon is up. Moon times are worked out for this location and match the US Naval Observatory to within a minute.'
+      : 'Bars show the hours of daylight; the change is compared with the day before.'}</div>`;
+  $('sClose').onclick = closeSkyWeek;
+  panel.querySelector('.dchips').onclick = e => { const b = e.target.closest('button'); if (b && b.dataset.v !== view) renderSkyWeek(b.dataset.v); };
+}
+function openSkyWeek(view){
+  if (!data || !place || ssheet || dsheet) return;
+  ssheet = document.createElement('div'); ssheet.className = 'dsheet';
+  ssheet.innerHTML = '<div class="dpanel" role="dialog" aria-modal="true" aria-label="Sun and moon this week"></div>';
+  document.body.appendChild(ssheet); document.body.style.overflow = 'hidden';
+  renderSkyWeek(view);
+  const panel = ssheet.querySelector('.dpanel');
+  ssheet.addEventListener('click', e => { if (e.target === ssheet) closeSkyWeek(); });
+  let ty = 0;   // pull down to dismiss
+  panel.addEventListener('touchstart', e => { ty = e.touches[0].clientY; }, {passive: true});
+  panel.addEventListener('touchend', e => { if (e.changedTouches[0].clientY - ty > 90 && panel.scrollTop <= 0) closeSkyWeek(); }, {passive: true});
+  enter(ssheet, panel);
+  $('sClose').focus({preventScroll: true});
+}
+function closeSkyWeek(){
+  if (!ssheet) return;
+  const el = ssheet; ssheet = null; el.classList.remove('open'); document.body.style.overflow = '';
+  const a = el.querySelector('.dpanel').animate([{transform: 'none', opacity: 1}, {transform: 'translateY(60px) scale(.96)', opacity: 0}],
+    {duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 240, easing: 'cubic-bezier(.4,0,.8,.6)', fill: 'forwards'});
+  a.onfinish = () => el.remove();
+  const card = document.querySelector('.sun'); card && card.focus({preventScroll: true});
+}
+// tapping the card (anywhere but its Sun / Moon tabs) opens the week, on whichever the card is showing
+document.addEventListener('click', e => {
+  const card = e.target.closest && e.target.closest('section.sun'); if (!card || e.target.closest('.seg')) return;
+  openSkyWeek(card.classList.contains('mv') ? 'moon' : 'sun');
+});
+document.addEventListener('keydown', e => {
+  if (ssheet && e.key === 'Escape') { closeSkyWeek(); return; }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('section.sun')) { e.preventDefault(); openSkyWeek(e.target.classList.contains('mv') ? 'moon' : 'sun'); }
+});
 
 // place the sun and its trail at fraction t of the day (0 = sunrise, 1 = sunset)
 function sunAt(panel, t){
@@ -2380,12 +2815,15 @@ $('refreshBtn').onclick = () => load();
     else { unwrapText(b); if (wasGlass) { void b.offsetWidth; b.classList.add('lg-release'); setTimeout(() => b.classList.remove('lg-release'), 600); } }
     pulled = 0;
   };
+  // buttons that share one pill (zoom − / +, the city screen's add / edit) stretch together, as the whole pill
+  const GROUP = '.zoom, .cgroup';
   document.addEventListener('pointerdown', e => {
-    const b = e.target.closest && e.target.closest('button'); if (!b || b.disabled) return;
+    const btn = e.target.closest && e.target.closest('button'); if (!btn || btn.disabled) return;
+    const grp = btn.closest(GROUP), b = grp || btn;
     b.getAnimations({subtree: true}).forEach(a => { if (a.id === 'pull') a.cancel(); });
     unwrapText(b);
     cur = b; x0 = e.clientX; y0 = e.clientY; pulled = 0; b._give = give(b);
-    glass = b.matches(SEL) && b.id !== 'moreBtn';                   // the ⋮ button has its own droplet when it opens
+    glass = !grp && btn.matches(SEL) && btn.id !== 'moreBtn';       // the ⋮ button has its own droplet when it opens
     b.dataset.pdx = b.dataset.pdy = 0;
     if (glass) b.classList.add('lg-press');
   }, true);
@@ -2406,7 +2844,7 @@ $('refreshBtn').onclick = () => load();
   document.addEventListener('pointerup', e => end(e, false), true);
   document.addEventListener('pointercancel', e => end(e, true), true);
   // a button that broke free doesn't fire its click
-  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button');
+  document.addEventListener('click', e => { const btn = e.target.closest && e.target.closest('button'), b = btn && (btn.closest(GROUP) || btn);
     if (b && b._snapped && Date.now() - b._snapped < 1200) { b._snapped = 0; e.stopPropagation(); e.preventDefault(); } }, true);
 })();
 
@@ -2544,8 +2982,11 @@ function setUpdateItem(){
   const v = appVer(), newer = latestRel && v && verCmp(latestRel.tag_name, v) > 0;
   $('mUpdate').innerHTML = newer ? `Update to ${esc(latestRel.tag_name)} <small class="new">new</small>` : `Check for updates${v ? ` <small>v${esc(v)}</small>` : ''}`;
 }
-async function checkUpdate(manual){
-  if (manual) skyToast('Checking for updates…');
+// the Android app can download and install its own updates (8.66+); older versions and browsers fall back to the browser
+const inApp = () => { try { return !!(window.AndroidApp && window.AndroidApp.installUpdate); } catch { return false; } };
+const canInstallNow = () => { try { return !!window.AndroidApp.canInstallUpdates(); } catch { return false; } };
+async function checkUpdate(manual, autoInstall){
+  if (manual && !autoInstall) skyToast('Checking for updates…');
   let rel;
   try {
     const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {headers: {Accept: 'application/vnd.github+json'}});
@@ -2557,7 +2998,15 @@ async function checkUpdate(manual){
   if (newer === false) { if (manual) skyToast(`You’re up to date · v${v}`); return; }
   // on its own the app offers each new version once; from the menu it always shows
   if (manual || (newer && store.get('updSkip', '') !== rel.tag_name)) openUpdate(rel, newer);
+  if (autoInstall && newer && usheet && $('uGet')) $('uGet').click();     // back from allowing installs: carry on
 }
+// back from Settings after allowing installs: the app was closed meanwhile, so pick the update up again on start
+(() => {
+  const tag = store.get('updResume', '');
+  if (!tag || !inApp()) return;
+  store.set('updResume', '');
+  if (canInstallNow()) setTimeout(() => checkUpdate(true, true), 1200);
+})();
 function openUpdate(rel, newer){
   if (usheet) return;
   const apk = (rel.assets || []).find(a => /\.apk$/i.test(a.name)), v = appVer();
@@ -2570,20 +3019,58 @@ function openUpdate(rel, newer){
     <div class="uvers">${v ? `<span>v${esc(v)}</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>` : ''}<b>${esc(rel.tag_name)}</b></div>
     <div class="unotes">${esc(notesText(rel.body)) || 'No release notes.'}</div>
     <div class="ubtns">
-      ${apk && newer !== false ? `<button class="ubtn main" id="uGet">Download update</button>` : ''}
+      ${apk && newer !== false ? `<button class="ubtn main" id="uGet">${inApp() ? 'Update now' : 'Download update'}</button>` : ''}
       <button class="ubtn" id="uView">View on GitHub</button>
       <button class="ubtn" id="uLater">${newer ? 'Later' : 'Close'}</button>
     </div>
-    ${apk && newer !== false ? `<div class="dabout">The update downloads in your browser; open it to install. Android may ask you to allow installs from your browser the first time.</div>` : ''}
+    <div class="uprog" id="uProg" hidden><div class="ubar"><i id="uBar"></i></div><div class="ustat" id="uStat"></div></div>
+    ${apk && newer !== false ? `<div class="dabout" id="uAbout">${inApp()
+      ? 'Skyline Weather downloads the update, checks it\'s genuine, and installs it. Android asks you to confirm.'
+      : 'The update downloads in your browser; open it to install. Android may ask you to allow installs from your browser the first time.'}</div>` : ''}
   </div>`;
   document.body.appendChild(usheet);
   const panel = usheet.querySelector('.dpanel');
   usheet.addEventListener('click', e => { if (e.target === usheet) closeUpdate(); });
-  if ($('uGet')) $('uGet').onclick = () => { openOut(apk.browser_download_url); closeUpdate(); };
+  if ($('uGet')) $('uGet').onclick = () => {
+    if (!inApp()) { openOut(apk.browser_download_url); closeUpdate(); return; }
+    updUI('downloading', 0, '');
+    try { window.AndroidApp.installUpdate(apk.browser_download_url, apk.digest || ''); } catch { updUI('error', 0, 'The update couldn’t start. Try again.'); }
+  };
+  usheet._tag = rel.tag_name;
   $('uView').onclick = () => openOut(rel.html_url || RELEASES);
   $('uLater').onclick = () => { if (newer) store.set('updSkip', rel.tag_name); closeUpdate(); };
   enter(usheet, panel);
 }
+// progress from the Android side (Updater / UpdateReceiver) arrives here
+function updUI(state, pct, msg){
+  if (!usheet) { if (state === 'error' && msg) skyToast(msg); return; }
+  const prog = $('uProg'), bar = $('uBar'), stat = $('uStat'), get = $('uGet'), about = $('uAbout');
+  if (!prog) return;
+  prog.hidden = false; if (about) about.hidden = state !== 'error' && state !== 'permission';
+  const busy = state === 'downloading' || state === 'verifying' || state === 'installing' || state === 'confirm';
+  if (get) { get.disabled = busy; get.hidden = busy; }
+  bar.style.width = (state === 'downloading' ? pct : busy ? 100 : 0) + '%';
+  prog.classList.toggle('err', state === 'error');
+  stat.textContent = state === 'downloading' ? `Downloading… ${pct}%`
+    : state === 'verifying' ? 'Checking the download is genuine…'
+    : state === 'installing' ? 'Installing…'
+    : state === 'confirm' ? 'Tap Install to finish. The app closes while it updates; a notification will open it again.'
+    : state === 'permission' ? 'First, allow Skyline Weather to install updates. You only need to do this once.'
+    : msg || 'Something went wrong.';
+  if (state === 'permission' && get) {
+    get.hidden = false; get.disabled = false; get.textContent = 'Open settings';
+    get.onclick = () => { store.set('updResume', usheet && usheet._tag || ''); try { window.AndroidApp.openInstallSettings(); } catch {} };
+  } else if (state === 'error' && get) { get.hidden = false; get.disabled = false; get.textContent = 'Try again'; }
+}
+window.__updState = (state, pct, msg) => updUI(state, pct, msg);
+// if the app stayed open while installs were allowed in Settings, carry straight on when it comes back
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !usheet || !store.get('updResume', '') || !inApp() || !canInstallNow()) return;
+  store.set('updResume', '');
+  const g = $('uGet'); if (g) { g.textContent = 'Update now'; g.onclick = null; }
+  checkUpdate(true, true);
+  closeUpdate();
+});
 function closeUpdate(){
   if (!usheet) return;
   const el = usheet; usheet = null; el.classList.remove('open');
@@ -2903,7 +3390,7 @@ function openCities(){
   $('q').value = ''; $('results').innerHTML = ''; $('cityTools').hidden = !!places.length; $('cgrid').hidden = false;
   refreshCards();
   requestAnimationFrame(() => requestAnimationFrame(() => c.classList.add('open')));
-  try { window.AndroidApp && window.AndroidApp.lightPage(!isDark); } catch {}
+  try { window.AndroidApp && window.AndroidApp.lightPage(false); } catch {}   // white status-bar icons over the sky
 }
 function closeCities(){
   if (!places.length) return;
@@ -2933,7 +3420,7 @@ function removePlace(i){
   idx = -1; goTo(ni, 0); renderCards();
 }
 const setPlace = addPlace, openSheet = openCities, closeSheet = closeCities;
-window.__closeSheet = () => { if (usheet) { closeUpdate(); return 1; } if (dsheet) { closeDay(); return 1; } if (!$('rv').classList.contains('parked') && !$('rv').hidden) { closeRadar(); return 1; } if (!$('life').hidden) { closeLife(); return 1; } if (!gm.hidden) { closeMenu(); return 1; } if (!$('cities').hidden && places.length) { closeCities(); return 1; } return 0; };
+window.__closeSheet = () => { if (findOpen() && !$('rv').classList.contains('parked')) { closeFind(); return 1; } if (usheet) { closeUpdate(); return 1; } if (ssheet) { closeSkyWeek(); return 1; } if (dsheet) { closeDay(); return 1; } if (!$('rv').classList.contains('parked') && !$('rv').hidden) { closeRadar(); return 1; } if (!$('life').hidden) { closeLife(); return 1; } if (!gm.hidden) { closeMenu(); return 1; } if (!$('cities').hidden && places.length) { closeCities(); return 1; } return 0; };
 $('placeBtn').onclick = openCities;
 $('placeName').onclick = () => { if (place) load(); else openCities(); };
 $('citiesBack').onclick = closeCities;
