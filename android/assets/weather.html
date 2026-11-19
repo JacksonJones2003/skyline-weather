@@ -124,7 +124,9 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 
 /* ---- hourly curve ---- */
 .hourly{margin-top:var(--gap)}
-.hscroll{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+/* sideways only: setting overflow-x alone makes the browser allow vertical scrolling too, and the folded wind / UV rows
+   and the slider's guide line poked out below, so the hours could be nudged up and down inside the row */
+.hscroll{overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .hscroll::-webkit-scrollbar{display:none}
 .hinner{position:relative;padding:0 0 6px}
 .hinner > svg,.hinner > .hrow{position:relative;z-index:1}
@@ -132,7 +134,16 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 .hl{position:absolute;top:0;bottom:0;left:0;border-radius:12px;pointer-events:none;z-index:0;
   background:linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,.13) 35%,rgba(255,255,255,.16));transition:transform .2s ease-out}
 /* the bead and its level line follow the scroll frame by frame, so they need no easing of their own */
-.hourly .knob,.hourly .hz{transition:none;will-change:transform}
+.hinner > .hcurve{position:absolute;left:0;top:0;z-index:2;overflow:hidden;pointer-events:none}
+.hcurve .hhz{position:absolute;left:0;top:0;width:100%;height:0;border-top:1.5px dashed rgba(255,255,255,.45);margin-top:-.75px;will-change:transform}
+.hcurve .lb{position:absolute;transform:translate(-50%,-100%);font:400 13.5px/1 sans-serif;color:rgba(255,255,255,.75);white-space:nowrap;padding-bottom:1px}
+.hcurve .lb.max{font-size:16px;font-weight:600;color:#ffb35c}
+.hcurve .lb.half{font-size:10.5px;color:rgba(255,255,255,.45)}
+/* the bead: its own layer, moved by the GPU as the row glides */
+.hcurve .hknob{position:absolute;left:0;top:0;width:0;height:0;will-change:transform}
+.hknob .kl{position:absolute;left:-.75px;top:19px;width:0;border-left:1.5px dashed rgba(255,255,255,.5)}
+.hknob .kt{position:absolute;left:-17px;top:-17px;width:34px;height:34px;box-sizing:border-box;border-radius:50%;background:#fff;border:3.5px solid #b9ec8f;
+  display:grid;place-items:center;font:600 16px/1 sans-serif;color:#1d3557;transition:scale .35s cubic-bezier(.3,1.6,.5,1)}
 .hinner svg{display:block}
 .hrow{display:flex}
 .hcol{flex:none;display:flex;flex-direction:column;align-items:center;gap:5px}
@@ -320,7 +331,7 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 .sun .times .mid{align-self:flex-end;font-size:12px;color:var(--ink-faint);padding-bottom:3px}
 /* sun / moon tabs: the card shows one view at a time (the moon at night) */
 .sun .seg{display:inline-flex;gap:2px;padding:2px;border-radius:14px;background:rgba(255,255,255,.1);border:1px solid var(--glass-line)}
-.sun .seg button{border:0;background:none;color:var(--ink-soft);font-size:13px;padding:4px 12px;border-radius:12px;transition:background .2s,color .2s}
+.sun .seg button{border:0;background:none;color:var(--ink-soft);font-size:13px;padding:4px 12px;border-radius:12px;transition:background .28s ease,color .28s ease}
 .sun .seg button[aria-selected="true"]{background:rgba(255,255,255,.9);color:#1d3557;font-weight:600}
 .sun .vm{display:none}
 .sun.mv .vm{display:block}
@@ -553,7 +564,7 @@ input{-webkit-user-select:text;user-select:text}
 @media (prefers-reduced-motion:reduce){.et-ring,.et-fx::before{animation:none;opacity:0}}
 /* hourly slider: the temperature circle swells into a glass bead while you drag */
 .knob circle{transform-box:fill-box;transform-origin:center;transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
-.hourly.touching .knob circle{transform:scale(1.22)}
+.hourly.touching .hknob .kt{scale:1.22}
 /* radar timeline: the thumb becomes a glass droplet while dragging */
 .rv input[type=range]::-webkit-slider-thumb{transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
 .rv input[type=range]:active::-webkit-slider-thumb{transform:scale(1.55);
@@ -1824,8 +1835,9 @@ let hourState = null;
 function wireSlider(){
   const sc = document.querySelector('.hscroll'); if (!sc || !hourState) return;
   const {pts, items, lefts, widths, W} = hourState, n = pts.length, cx = pts.map(p => p[0]);
-  const svg = sc.querySelector('svg'), knob = svg.querySelector('.knob'), hz = svg.querySelector('.hz'), kt = knob.querySelector('.kt');
-  const hl = sc.querySelector('.hl'), cols = sc.querySelectorAll('.hcol'), lbs = svg.querySelectorAll('.lb');
+  const knob = sc.querySelector('.hknob'), hz = sc.querySelector('.hhz'), kt = knob.querySelector('.kt');
+  const hl = sc.querySelector('.hl'), cols = sc.querySelectorAll('.hcol');
+  const lbs = [...sc.querySelectorAll('.hcurve .lb')].map(el => ({el, x: cx[+el.dataset.i], o: ''}));
   let cur = -1, raf = 0;
   // a point on the drawn curve between point j and j+1 (the same Bezier segment smooth() draws), t from 0 to 1
   const onCurve = (j, t) => {
@@ -1844,10 +1856,10 @@ function wireSlider(){
     let j = 0; while (j < n - 2 && cx[j + 1] <= x) j++;
     const t = n > 1 ? Math.min(1, Math.max(0, (x - cx[j]) / (cx[j + 1] - cx[j]))) : 0, pos = j + t;
     const [px, py] = n > 1 ? onCurve(j, t) : pts[0];
-    knob.style.transform = `translate(${px.toFixed(2)}px,${py.toFixed(2)}px)`;
-    hz.style.transform = `translateY(${py.toFixed(2)}px)`;
-    // labels on the line fade as the bead passes over them rather than blinking off
-    lbs.forEach(l => { const d = Math.abs(cx[+l.dataset.i] - px) / COL; l.style.opacity = d < 1 ? Math.max(0, d * 1.8 - .5).toFixed(2) : ''; });
+    knob.style.transform = `translate3d(${px.toFixed(1)}px,${py.toFixed(1)}px,0)`;
+    hz.style.transform = `translate3d(0,${py.toFixed(1)}px,0)`;
+    // labels on the line fade as the bead passes over them rather than blinking off (only those whose fade changes are touched)
+    lbs.forEach(l => { const d = Math.abs(l.x - px) / COL, o = d < 1 ? Math.max(0, d * 1.8 - .5).toFixed(1) : ''; if (o !== l.o) { l.o = o; l.el.style.opacity = o; } });
     const i = Math.round(pos);
     if (i === cur) return; cur = i;
     kt.textContent = Math.round(T(items[i].t));
@@ -1917,24 +1929,24 @@ function hourly(){
   const hrT=items.map(x=>x.half||x.sun?-Infinity:T(x.t)), maxI=hrT.indexOf(Math.max(...hrT));
   const nowY=pts[0][1];
   hourState = {pts, items, lefts, widths, W};
+  // Labels, the bead and its level line sit in their own layers over the curve (not inside the curve's picture), so
+  // gliding through the hours only moves those layers; the wide curve picture is never redrawn while you scroll.
   const labels=items.map((x,i)=> x.sun ? '' : x.half
-    ? `<text class="lb" data-i="${i}" x="${pts[i][0]}" y="${pts[i][1]-9}" text-anchor="middle" font-size="10.5" fill="rgba(255,255,255,.45)" font-family="sans-serif">${Math.round(T(x.t))}°</text>`
-    : `<text class="lb" data-i="${i}" x="${pts[i][0]}" y="${pts[i][1]-11}" text-anchor="middle" font-size="${i===maxI?16:13.5}" font-weight="${i===maxI?600:400}" fill="${i===maxI?'#ffb35c':'rgba(255,255,255,.75)'}" font-family="sans-serif">${Math.round(T(x.t))}°</text>`).join('');
+    ? `<span class="lb half" data-i="${i}" style="left:${pts[i][0]}px;top:${(pts[i][1]-9).toFixed(1)}px">${Math.round(T(x.t))}°</span>`
+    : `<span class="lb${i===maxI?' max':''}" data-i="${i}" style="left:${pts[i][0]}px;top:${(pts[i][1]-11).toFixed(1)}px">${Math.round(T(x.t))}°</span>`).join('');
   const halfDots=items.map((x,i)=>x.half?`<circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="2.2" fill="rgba(255,255,255,.6)"/>`:'').join('');
   const svg=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
     <defs><linearGradient id="lg" x1="0" x2="${W}" y1="0" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#a6f0a0"/><stop offset="${Math.min(1,(C*2.5)/W)}" stop-color="#ffc56b"/><stop offset="1" stop-color="#ffa64d"/></linearGradient></defs>
-    <line class="hz" x1="0" y1="0" x2="${W}" y2="0" style="transform:translateY(${nowY}px)" stroke="rgba(255,255,255,.45)" stroke-width="1.5" stroke-dasharray="5 5"/>
     <path d="${smooth(pts)}" fill="none" stroke="url(#lg)" stroke-width="3.5" stroke-linecap="round"/>
     ${halfDots}
     <circle cx="${pts[maxI][0]}" cy="${pts[maxI][1]}" r="5" fill="#ffa64d"/>
+  </svg>
+  <div class="hcurve" style="width:${W}px;height:${H}px">
+    <i class="hhz" style="transform:translate3d(0,${nowY.toFixed(1)}px,0)"></i>
     ${labels}
-    <g class="knob" style="transform:translate(${pts[0][0]}px,${nowY}px)">
-      <line x1="0" y1="19" x2="0" y2="${H}" stroke="rgba(255,255,255,.5)" stroke-width="1.5" stroke-dasharray="4 5"/>
-      <circle r="17" fill="#fff" stroke="#b9ec8f" stroke-width="3.5"/>
-      <text class="kt" y="6" text-anchor="middle" font-size="16" font-weight="600" fill="#1d3557" font-family="sans-serif">${Math.round(T(items[0].t))}</text>
-    </g>
-  </svg>`;
+    <div class="hknob" style="transform:translate3d(${pts[0][0]}px,${nowY.toFixed(1)}px,0)"><i class="kl" style="height:${H}px"></i><b class="kt">${Math.round(T(items[0].t))}</b></div>
+  </div>`;
   const cols=items.map(x=>{
     if (x.half) return `<div class="hcol half" style="width:${HALF}px"><span class="hd"></span><div class="pp"></div><div class="hx"></div><div class="hx"></div><div class="t">${clock(x.time)}</div></div>`;
     const ic = x.sun ? sunsetIcon(x.sun==='rise') : icon(cond(x.code)[1], x.day);
@@ -2456,8 +2468,12 @@ function moonView(d){
 document.addEventListener('click', e => {
   const b = e.target.closest && e.target.closest('.sun .seg button'); if (!b) return;
   const card = b.closest('.sun'), moon = b.dataset.v === 'moon';
+  if (card.classList.contains('mv') === moon) return;                // already showing it
   card.classList.toggle('mv', moon);
   card.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  card.querySelectorAll(moon ? ':scope > .vm, .hd .dl.vm' : ':scope > .vs, .hd .dl.vs').forEach(v =>
+    v.animate([{opacity: 0, translate: '0 4px'}, {opacity: 1, translate: '0 0'}], {duration: 220, easing: 'cubic-bezier(.3,.7,.3,1)'}));
 });
 
 // ---- the week's sun and moon: tap the card for the next seven days ----
@@ -2776,7 +2792,7 @@ $('refreshBtn').onclick = () => load();
     // a day row flashes by itself; "More" has its own spring; neither sets off the whole-panel ripple
     const row = e.target.closest('.drow');
     if (row) { rowT = setTimeout(() => { if (!dragging) row.classList.add('tap'); }, HOLD); tapRow = row; return; }
-    if (!el || e.target.closest('.round, .pill, .del, .dmore, .hxt') || $('cities').classList.contains('editing') && el.classList.contains('ccard')) return;
+    if (!el || e.target.closest('.round, .pill, .del, .dmore, .hxt, .seg') || $('cities').classList.contains('editing') && el.classList.contains('ccard')) return;
     cur = el;
     if (el.classList.contains('hourly')) { el.classList.add('touching'); return; }
     pend = setTimeout(() => { pend = 0; if (!dragging && cur === el) press(el, x0, y0); }, HOLD);   // still now? then it's a press
@@ -2857,7 +2873,7 @@ $('refreshBtn').onclick = () => load();
   // buttons that share one pill (zoom − / +, the city screen's add / edit) stretch together, as the whole pill
   const GROUP = '.zoom, .cgroup';
   document.addEventListener('pointerdown', e => {
-    const btn = e.target.closest && e.target.closest('button'); if (!btn || btn.disabled || btn.classList.contains('hxt')) return;
+    const btn = e.target.closest && e.target.closest('button'); if (!btn || btn.disabled || btn.classList.contains('hxt') || btn.closest('.seg')) return;
     const grp = btn.closest(GROUP), b = grp || btn;
     b.getAnimations({subtree: true}).forEach(a => { if (a.id === 'pull') a.cancel(); });
     unwrapText(b);
