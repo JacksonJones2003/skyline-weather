@@ -112,9 +112,17 @@ public class MainActivity extends Activity {
                 + "if(!b)return 0;b.click();return 1})()", null);
     }
 
+    // a weather alert notification that opened the app: the page shows that alert (takeAlertId / __openAlert)
+    private volatile String pendingAlert;
+    @Override protected void onNewIntent(android.content.Intent i) {
+        super.onNewIntent(i); setIntent(i);
+        String id = i == null ? null : i.getStringExtra(WeatherAlerts.EXTRA);
+        if (id != null && web != null) web.evaluateJavascript("window.__openAlert&&window.__openAlert(" + org.json.JSONObject.quote(id) + ")", null);
+    }
+
     /** Rain alerts need notification permission (Android 13+): ask once, a moment after the app opens. */
     void askNotifications() {
-        if (android.os.Build.VERSION.SDK_INT < 33 || !RainAlert.enabled(this)) return;
+        if (android.os.Build.VERSION.SDK_INT < 33 || !(RainAlert.enabled(this) || WeatherAlerts.enabled(this))) return;
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return;
         try { requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 7); } catch (Throwable ignored) { }
     }
@@ -134,6 +142,7 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onCreate(Bundle b) {
+        if (getIntent() != null) pendingAlert = getIntent().getStringExtra(WeatherAlerts.EXTRA);
         super.onCreate(b);
         WeatherRefreshJob.schedule(this);
         WidgetKeepAliveService.start(this);
@@ -341,6 +350,13 @@ public class MainActivity extends Activity {
                 return o.toString();
             } catch (Exception e) { return "{}"; }
         }
+        // weather warnings (NWS) on / off, and the alert a notification was tapped for (taken once by the page)
+        @JavascriptInterface public boolean weatherAlerts() { return WeatherAlerts.enabled(MainActivity.this); }
+        @JavascriptInterface public void setWeatherAlerts(boolean on) {
+            WeatherAlerts.setEnabled(MainActivity.this, on);
+            if (on) runOnUiThread(MainActivity.this::askNotifications);
+        }
+        @JavascriptInterface public String takeAlertId() { String id = pendingAlert; pendingAlert = null; return id == null ? "" : id; }
         // rain alerts on / off (the ⋮ menu); turning them on asks for notification permission if needed
         @JavascriptInterface public boolean rainAlerts() { return RainAlert.enabled(MainActivity.this); }
         @JavascriptInterface public void setRainAlerts(boolean on) {
@@ -351,6 +367,14 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void installUpdate(String url, String sha256) { Updater.start(MainActivity.this, url, sha256); }
         @JavascriptInterface public boolean canInstallUpdates() { return Updater.canInstall(MainActivity.this); }
         @JavascriptInterface public void openInstallSettings() { runOnUiThread(() -> Updater.openInstallSettings(MainActivity.this)); }
+        // whether the phone is on Wi-Fi right now: the automatic update check only runs then (never on mobile data)
+        @JavascriptInterface public boolean onWifi() {
+            try {
+                android.net.ConnectivityManager cm = getSystemService(android.net.ConnectivityManager.class);
+                android.net.NetworkCapabilities nc = cm == null ? null : cm.getNetworkCapabilities(cm.getActiveNetwork());
+                return nc != null && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI);
+            } catch (Exception e) { return false; }
+        }
         // the page's update check compares this with the newest GitHub release
         @JavascriptInterface public String appVersion() {
             try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception e) { return ""; }

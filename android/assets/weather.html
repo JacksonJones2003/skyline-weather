@@ -52,6 +52,10 @@ button:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2
 #cloudstrip img{position:absolute;top:0;height:auto;max-width:none}
 @keyframes drift{from{transform:translateX(0)}to{transform:translateX(-50vw)}}
 canvas#fx{position:absolute;inset:0;width:100%;height:100%}
+/* lightning: a soft glow lighting the clouds from where the bolt strikes, and the bolt itself (see strike) */
+#flash,#bolt{position:absolute;inset:0;pointer-events:none;opacity:0}
+#flash{background:radial-gradient(circle at var(--fx,50%) var(--fy,20%),rgba(235,240,255,.5),rgba(205,218,255,.2) 38%,rgba(185,200,255,.07) 70%,rgba(185,200,255,0))}
+#bolt svg{display:block;filter:drop-shadow(0 0 6px rgba(200,215,255,.9))}
 .water-reflection{position:absolute;pointer-events:none;white-space:nowrap;text-align:center;transform-origin:center bottom;opacity:0;
   filter:blur(.8px);will-change:transform,opacity,left,top;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.72),transparent 92%);mask-image:linear-gradient(to top,rgba(0,0,0,.72),transparent 92%);
   animation:waterWaver 4.2s ease-in-out infinite}
@@ -340,6 +344,32 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 .sun.mv .hd .dl.vm{display:inline}
 .sun .mnone{font-size:14px;color:var(--ink-soft);padding:24px 2px}
 .sun{cursor:pointer}
+/* weather alert banner under the temperature, tinted by severity */
+.walert{display:flex;align-items:center;gap:8px;width:100%;margin:10px 0 0;padding:10px 14px;border-radius:16px;font:inherit;font-size:15px;color:#fff;text-align:left;
+  border:1px solid color-mix(in srgb,var(--sev) 55%,transparent);background:color-mix(in srgb,var(--sev) 24%,var(--btn));
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 6px 18px rgba(0,0,0,.12)}
+.walert > svg:first-child{color:var(--sev);flex:none}
+.walert .ev{font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.walert .more{font-size:13px;color:var(--ink-soft);flex:none}
+.walert .go{opacity:.7;flex:none}
+#main > .walert{grid-column:1 / -1}
+/* the alert popup */
+.apanel .mi svg{width:24px;height:24px}
+.wlist{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.wcard{border-radius:18px;padding:12px 14px 12px 16px;background:rgba(255,255,255,.1);border:1px solid var(--glass-line);border-left:4px solid var(--sev)}
+.wcard.focus{box-shadow:0 0 0 2px color-mix(in srgb,var(--sev) 70%,transparent)}
+.wcard .wt{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.wcard .wt b{font-size:17px;font-weight:600}
+.wcard .sv{flex:none;font-size:11.5px;font-weight:700;letter-spacing:.02em;padding:3px 9px;border-radius:999px;background:var(--sev);color:#1d2230}
+.wcard .wwhen{font-size:13px;color:var(--ink-soft);margin-top:4px}
+.wcard .wh{margin:10px 0 0;font-size:14.5px;line-height:1.4;font-weight:500}
+.wcard .wd{margin-top:8px;font-size:14px;line-height:1.45;color:rgba(255,255,255,.86);white-space:pre-line}
+.wcard .wd.clip{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.wcard .wmore{border:0;background:none;color:#fff;font:inherit;font-size:13px;font-weight:600;padding:6px 0 0;opacity:.85}
+.wcard .wdo{margin-top:10px;font-size:14px;line-height:1.45;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.08);white-space:pre-line}
+.wcard .wdo small{display:block;font-size:12px;font-weight:700;color:var(--sev);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em}
+.wcard .warea{margin-top:10px;font-size:12.5px;color:var(--ink-faint);line-height:1.4}
+.wcard .wsrc{margin-top:4px;font-size:12px;color:var(--ink-faint)}
 /* the week's sun and moon (tap the card) */
 .wscale{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-faint);margin:14px 2px 2px}
 .wk{display:flex;flex-direction:column}
@@ -739,6 +769,8 @@ input{-webkit-user-select:text;user-select:text}
   <div class="suntint" id="suntint"></div>
   <div class="sunwash" id="sunwash"></div>
   <div class="water-reflection" id="waterReflection"></div>
+  <div id="flash"></div>
+  <div id="bolt"></div>
   <canvas id="fx"></canvas>
 </div>
 
@@ -820,6 +852,7 @@ input{-webkit-user-select:text;user-select:text}
     <button id="mShare" role="menuitem">Share weather</button>
     <button id="mHalf" role="menuitem" hidden></button>
     <button id="mRain" role="menuitem" hidden></button>
+    <button id="mWarn" role="menuitem" hidden></button>
     <button id="mUpdate" role="menuitem">Check for updates</button>
   </div>
 </div>
@@ -1095,6 +1128,7 @@ function scene(kind, day, bare = false){
   sunTick();
   drawClouds(kind, day, bare);
   particles(kind);
+  lightning(kind === 'storm');
   starSky(kind, day);
 }
 
@@ -1369,6 +1403,39 @@ function setScrolling(on){
 addEventListener('scroll', () => { setScrolling(true); clearTimeout(scrollT); scrollT = setTimeout(() => setScrolling(false), 160); }, {passive: true});
 
 let raf, parts=[];
+// ---- lightning in thunderstorms ----
+// Every few seconds the sky behind the panels flickers twice, the way real lightning does, and most times a jagged bolt
+// forks down from the top. Kept gentle on purpose: soft flashes (never a full white screen), at least 3.5 s apart, none
+// while scrolling or with the app hidden, and none at all with Reduce motion on.
+let boltT = 0;
+function lightning(on){
+  clearTimeout(boltT);
+  if (!on || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const next = () => { boltT = setTimeout(() => { if (!document.hidden && !scrolling) strike(); next(); }, 3500 + Math.random() * 8000); };
+  boltT = setTimeout(() => { if (!document.hidden) strike(); next(); }, 1200 + Math.random() * 1500);   // the first one soon after it starts
+}
+function strike(){
+  const W = innerWidth, H = innerHeight, x0 = W * (.14 + Math.random() * .72), yEnd = H * (.3 + Math.random() * .26);
+  const fl = $('flash'), bo = $('bolt'), withBolt = Math.random() < .6;
+  fl.style.setProperty('--fx', (x0 / W * 100).toFixed(1) + '%'); fl.style.setProperty('--fy', (yEnd * .45 / H * 100).toFixed(1) + '%');
+  if (withBolt) {
+    // the main channel zig-zags down; one branch splits off part way
+    const pts = [[x0, -8]], steps = 11 + Math.floor(Math.random() * 6), dy = (yEnd + 8) / steps;
+    let x = x0, y = -8;
+    for (let i = 0; i < steps; i++) { x += (Math.random() - .5) * W * .075; y += dy * (.7 + Math.random() * .6); pts.push([x, y]); }
+    const from = 3 + Math.floor(Math.random() * (steps - 6)), side = Math.random() < .5 ? -1 : 1, br = [pts[from]];
+    let [bx, by] = pts[from];
+    for (let i = 0; i < 4 + Math.floor(Math.random() * 3); i++) { bx += side * W * (.02 + Math.random() * .04); by += dy * (.6 + Math.random() * .5); br.push([bx, by]); }
+    const d = a => 'M' + a.map(([u, v]) => u.toFixed(1) + ' ' + v.toFixed(1)).join(' L');
+    bo.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="${d(pts)}" stroke="rgba(185,205,255,.45)" stroke-width="9"/><path d="${d(br)}" stroke="rgba(185,205,255,.35)" stroke-width="6"/>
+      <path d="${d(pts)}" stroke="#fff" stroke-width="2.4"/><path d="${d(br)}" stroke="rgba(255,255,255,.85)" stroke-width="1.4"/></svg>`;
+  }
+  const flicker = k => [{opacity: 0}, {opacity: k, offset: .07}, {opacity: k * .22, offset: .16}, {opacity: k * .85, offset: .27}, {opacity: 0}];
+  fl.animate(flicker(1), {duration: 700, easing: 'ease-out'});
+  if (withBolt) bo.animate(flicker(1), {duration: 620, easing: 'ease-out'});
+}
+window.__strike = () => strike();   // test hook
 function particles(kind){
   cancelAnimationFrame(raf);
   // rain and snow are soft streaks and dots: 1.5x resolution is plenty, and on a 3x phone screen it's a quarter of the pixels
@@ -1379,10 +1446,11 @@ function particles(kind){
   const type = kind==='rain'||kind==='storm' ? 'rain' : kind==='snow' ? 'snow' : null;
   $('waterReflection').classList.toggle('live', type==='rain');
   if (!type || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const N = type==='rain'?110:80;
+  // thunderstorms: a downpour, more drops, falling faster and driven sideways by the wind
+  const fierce = kind==='storm', N = type==='rain'?(fierce?190:110):80;
   // Rain is time-based, so it keeps the same calmer speed at 60, 90 or 120 Hz.
   // The drops move at 62% of their old rate, with a little natural variation.
-  parts = Array.from({length:N},()=>({x:Math.random(),y:Math.random(),v:type==='rain'?.0075+Math.random()*.006:.0015+Math.random()*.002,r:Math.random()}));
+  parts = Array.from({length:N},()=>({x:Math.random(),y:Math.random(),v:(type==='rain'?.0075+Math.random()*.006:.0015+Math.random()*.002)*(fierce?1.55:1),r:Math.random()}));
   let last=0, ripples=[], gapPx=0;
   // read once (and again on resize), not every frame: a style read each frame forced the page to restyle mid-scroll
   const readGap=()=>{gapPx=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'))||innerHeight*.19;};
@@ -1407,10 +1475,14 @@ function particles(kind){
     }
     for(const p of parts){
       if(type==='snow') p.x+=Math.sin((p.y+p.r)*12)*.0006*step;
+      else if(fierce){p.x+=.0011*step; if(p.x>1.02) p.x-=1.04;}     // the wind carries storm rain across the sky
       if(p.y>1){p.y=-.05;p.x=Math.random();}
       const x=p.x*cv.width,y=p.y*cv.height;
       if(type==='rain'){
-        if(!(py>0 && y>=py && Math.abs(x-cv.width/2)<poolHalfW)){ctx.strokeStyle='rgba(220,235,255,.38)';ctx.lineWidth=1.2*dpr;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+12*dpr);ctx.stroke();}
+        if(!(py>0 && y>=py && Math.abs(x-cv.width/2)<poolHalfW)){
+          if(fierce){ctx.strokeStyle='rgba(225,238,255,.5)';ctx.lineWidth=1.4*dpr;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+5*dpr,y+19*dpr);ctx.stroke();}
+          else{ctx.strokeStyle='rgba(220,235,255,.38)';ctx.lineWidth=1.2*dpr;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+12*dpr);ctx.stroke();}
+        }
       } else {ctx.fillStyle='rgba(255,255,255,.8)';ctx.beginPath();ctx.arc(x,y,(1.2+p.r*2)*dpr,0,7);ctx.fill();}
     }
     if(type==='rain'){
@@ -2536,6 +2608,113 @@ document.addEventListener('click', e => {
     v.animate([{opacity: 0, translate: '0 4px'}, {opacity: 1, translate: '0 0'}], {duration: 220, easing: 'cubic-bezier(.3,.7,.3,1)'}));
 });
 
+// ---- weather alerts: warnings, watches and advisories from the National Weather Service (US) ----
+// A banner under the temperature while any are active for the city on screen; tapping it (or a notification, or a new
+// warning appearing) opens a popup with each alert in full. Severity colors: extreme red, severe orange, moderate amber.
+const SEV = {Extreme: ['#ff5a4e', 4], Severe: ['#ff9a3c', 3], Moderate: ['#ffd23f', 2], Minor: ['#8fd0ff', 1], Unknown: ['#c9d3e6', 0]};
+const sevOf = a => SEV[a.severity] || SEV.Unknown;
+const importantAlert = a => /Warning|Watch/.test(a.event) || a.severity === 'Extreme' || a.severity === 'Severe';
+let alertsFor = {}, asheet = null;                        // per city: {at, list}
+async function fetchAlerts(p){
+  const k = placeKey(p), c = alertsFor[k];
+  if (c && Date.now() - c.at < 5 * 60 * 1000) return c.list;
+  try {
+    const r = await fetch(`https://api.weather.gov/alerts/active?point=${(+p.lat).toFixed(4)},${(+p.lon).toFixed(4)}`, {headers: {Accept: 'application/geo+json'}});
+    const j = r.ok ? await r.json() : {features: []};
+    const list = (j.features || []).map(f => f.properties).filter(a => a.status === 'Actual' && a.messageType !== 'Cancel')
+      .sort((a, b) => (importantAlert(b) - importantAlert(a)) || (sevOf(b)[1] - sevOf(a)[1]));
+    alertsFor[k] = {at: Date.now(), list};
+    return list;
+  } catch { return c ? c.list : []; }
+}
+function alertBanner(list){
+  document.querySelector('#main .walert')?.remove();
+  if (!list.length) return;
+  const a = list[0], hero = document.querySelector('#main .hero'); if (!hero) return;
+  hero.insertAdjacentHTML('afterend', `<button class="walert" style="--sev:${sevOf(a)[0]}" aria-label="Weather alerts: ${esc(a.event)}">
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M10.3 3.9 1.8 18.6A2 2 0 0 0 3.5 21.6h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM11 9h2v6h-2zm0 8h2v2h-2z"/></svg>
+    <span class="ev">${esc(a.event)}</span>${list.length > 1 ? `<span class="more">+${list.length - 1} more</span>` : ''}
+    <svg class="go" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>`);
+}
+async function showAlerts(){
+  if (!place) return;
+  const p = place, k = placeKey(p);
+  if (alertsFor[k]) alertBanner(alertsFor[k].list);       // what we have, straight away
+  const list = await fetchAlerts(p);
+  if (place !== p) return;
+  alertBanner(list);
+  // the alert a notification was tapped for opens first; otherwise a new warning or watch pops up once by itself
+  let tapped = ''; try { tapped = window.AndroidApp && window.AndroidApp.takeAlertId ? window.AndroidApp.takeAlertId() : ''; } catch {}
+  if (tapped) { openAlertById(tapped); return; }
+  const seen = store.get('alertsSeen', {}), now = Date.now();
+  Object.keys(seen).forEach(id => { if (seen[id] < now) delete seen[id]; });
+  const fresh = list.filter(a => importantAlert(a) && !seen[a.id] && !(a.references || []).some(r => seen[r.identifier]));
+  list.forEach(a => { seen[a.id] = Math.max(Date.parse(a.ends || a.expires) || 0, now + 3600e3); });
+  store.set('alertsSeen', seen);
+  if (fresh.length && !asheet && !dsheet && !ssheet && !usheet) openAlerts(list, fresh[0].id);
+}
+// a notification is for the widget's city, which may not be the one on screen: fetch that alert if needed
+async function openAlertById(id){
+  const here = (alertsFor[placeKey(place)] || {}).list || [];
+  if (here.some(a => a.id === id)) { openAlerts(here, id); return; }
+  try {
+    const r = await fetch('https://api.weather.gov/alerts/' + encodeURIComponent(id), {headers: {Accept: 'application/geo+json'}});
+    if (r.ok) { const a = (await r.json()).properties; if (a) { openAlerts([a], a.id); return; } }
+  } catch {}
+  if (here.length) openAlerts(here);
+}
+window.__openAlert = id => openAlertById(id);
+// a time on the alert's own clock (the ISO string carries the offset), as "Thu 4:00 AM"
+const alertTime = iso => { if (!iso) return ''; const m = /T(\d\d):(\d\d)/.exec(iso), d = new Date(iso.slice(0, 10) + 'T12:00:00');
+  const h = m ? +m[1] : 0; return `${d.toLocaleDateString('en-US', {weekday: 'short'})} ${h % 12 || 12}:${m ? m[2] : '00'} ${h < 12 ? 'AM' : 'PM'}`; };
+function openAlerts(list, focusId){
+  if (asheet || !list.length) return;
+  asheet = document.createElement('div'); asheet.className = 'dsheet';
+  const cards = list.map(a => {
+    const [col] = sevOf(a), until = a.ends || a.expires, starts = a.onset && Date.parse(a.onset) > Date.now() ? a.onset : null;
+    const desc = (a.description || '').replace(/\n(?!\n)/g, ' ').trim(), what = (a.instruction || '').replace(/\n(?!\n)/g, ' ').trim();
+    return `<article class="wcard${a.id === focusId ? ' focus' : ''}" style="--sev:${col}" data-id="${esc(a.id)}">
+      <div class="wt"><b>${esc(a.event)}</b><span class="sv">${esc(a.severity || 'Alert')}</span></div>
+      <div class="wwhen">${starts ? `From ${alertTime(starts)} · ` : ''}${until ? `Until ${alertTime(until)}` : ''}</div>
+      ${a.headline ? `<p class="wh">${esc(a.headline)}</p>` : ''}
+      ${desc ? `<div class="wd clip">${esc(desc)}</div><button class="wmore">Show more</button>` : ''}
+      ${what ? `<div class="wdo"><small>What to do</small>${esc(what)}</div>` : ''}
+      <div class="warea">${esc(a.areaDesc || '')}</div>
+      <div class="wsrc">${esc(a.senderName || 'National Weather Service')}</div>
+    </article>`;
+  }).join('');
+  asheet.innerHTML = `<div class="dpanel apanel" role="dialog" aria-modal="true" aria-label="Weather alerts">
+    <div class="grab"></div>
+    <div class="dnav"><button class="round" id="aClose" aria-label="Close"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="dhead"><span class="mi" style="color:${sevOf(list[0])[0]}"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.3 3.9 1.8 18.6A2 2 0 0 0 3.5 21.6h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM11 9h2v6h-2zm0 8h2v2h-2z"/></svg></span>
+      <div class="tt"><div class="dn">${list.length > 1 ? list.length + ' weather alerts' : 'Weather alert'}</div><div class="dc">${esc(place ? place.name : '')}</div></div></div>
+    <div class="wlist">${cards}</div>
+    <div class="dabout">From the National Weather Service. ${window.AndroidApp ? 'Warnings and watches also come as notifications (⋮ → Weather alerts).' : ''}</div>
+  </div>`;
+  document.body.appendChild(asheet); document.body.style.overflow = 'hidden';
+  const panel = asheet.querySelector('.dpanel');
+  asheet.addEventListener('click', e => {
+    if (e.target === asheet) { closeAlerts(); return; }
+    const m = e.target.closest('.wmore'); if (!m) return;
+    const d = m.previousElementSibling, open = d.classList.toggle('clip'); m.textContent = open ? 'Show more' : 'Show less';
+  });
+  $('aClose').onclick = closeAlerts;
+  let ty = 0;
+  panel.addEventListener('touchstart', e => { ty = e.touches[0].clientY; }, {passive: true});
+  panel.addEventListener('touchend', e => { if (e.changedTouches[0].clientY - ty > 90 && panel.scrollTop <= 0) closeAlerts(); }, {passive: true});
+  enter(asheet, panel);
+  const f = focusId && panel.querySelector('.wcard.focus'); if (f) setTimeout(() => f.scrollIntoView({block: 'nearest'}), 380);
+}
+function closeAlerts(){
+  if (!asheet) return;
+  const el = asheet; asheet = null; el.classList.remove('open'); document.body.style.overflow = '';
+  const a = el.querySelector('.dpanel').animate([{transform: 'none', opacity: 1}, {transform: 'translateY(60px) scale(.96)', opacity: 0}],
+    {duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 240, easing: 'cubic-bezier(.4,0,.8,.6)', fill: 'forwards'});
+  a.onfinish = () => el.remove();
+}
+document.addEventListener('click', e => { if (e.target.closest && e.target.closest('#main .walert')) openAlerts((alertsFor[placeKey(place)] || {}).list || []); });
+document.addEventListener('keydown', e => { if (asheet && e.key === 'Escape') closeAlerts(); });
+
 // ---- the week's sun and moon: tap the card for the next seven days ----
 let ssheet = null;
 // a time (ms) on the place's own clock, rounded to the minute, as "6:52 AM"
@@ -2724,6 +2903,7 @@ function render(){
   if (!opened) { opened = true; $('main').classList.add('opening'); setTimeout(() => $('main').classList.remove('opening'), 1400); }
   armGauges();
   heroGlow();
+  showAlerts();
   watchVisibility();
   wireSlider();
   miniRadar();
@@ -2973,6 +3153,8 @@ function setMenuText(){
   // rain alerts run in the Android app's background service, so the switch only appears there
   const rainOn = rainAlertsOn(); $('mRain').hidden = rainOn == null;
   if (rainOn != null) $('mRain').innerHTML = `Rain alerts <small>${rainOn ? 'On' : 'Off'}</small>`;
+  const warnOn = warnAlertsOn(); $('mWarn').hidden = warnOn == null;
+  if (warnOn != null) $('mWarn').innerHTML = `Weather alerts <small>${warnOn ? 'On' : 'Off'}</small>`;
 }
 // The ⋮ button turns into the menu like vivo's: the menu itself is the droplet. Its visible shape (a clip) starts
 // as the button's circle, squeezes, drifts down-left while swelling into a rounded blob, then fills out into the
@@ -3076,6 +3258,11 @@ gs.onclick = () => closeMenu();
 $('mUnit').onclick = () => closeMenu(() => { unit = unit === 'F' ? 'C' : 'F'; store.set('unit', unit); render(); });
 $('mCities').onclick = () => closeMenu(openCities);
 // rain alerts: a heads-up when rain is about to start where you are (live radar + the 15-minute forecast, US only)
+function warnAlertsOn(){ try { return window.AndroidApp && window.AndroidApp.weatherAlerts ? !!window.AndroidApp.weatherAlerts() : null; } catch { return null; } }
+$('mWarn').onclick = () => closeMenu(() => {
+  const on = !warnAlertsOn(); try { window.AndroidApp.setWeatherAlerts(on); } catch {}
+  skyToast(on ? 'Weather alerts on · warnings and watches will notify you' : 'Weather alert notifications off · still shown in the app');
+});
 function rainAlertsOn(){ try { return window.AndroidApp && window.AndroidApp.rainAlerts ? !!window.AndroidApp.rainAlerts() : null; } catch { return null; } }
 $('mRain').onclick = () => closeMenu(() => {
   const on = !rainAlertsOn(); try { window.AndroidApp.setRainAlerts(on); } catch {}
@@ -3205,8 +3392,10 @@ function closeUpdate(){
 document.addEventListener('keydown', e => { if (usheet && e.key === 'Escape') closeUpdate(); });
 $('mUpdate').onclick = () => closeMenu(() => checkUpdate(true));
 setUpdateItem();
-// in the Android app, look on its own at most every 12 hours, a little after the forecast is up
-if (appVer() && Date.now() - store.get('updCheck', 0) > 12 * 3600 * 1000) setTimeout(() => checkUpdate(false), 4000);
+// In the Android app, look for an update every time the app is opened (it starts fresh each time), but only on Wi-Fi:
+// never on mobile data. A little after the forecast is up, and each new version is still only offered once.
+const onWifi = () => { try { return !!(window.AndroidApp && window.AndroidApp.onWifi && window.AndroidApp.onWifi()); } catch { return false; } };
+if (appVer() && onWifi()) setTimeout(() => checkUpdate(false), 4000);
 
 // pull down from the top of the page to refresh, the way the system weather app does
 (() => {
@@ -3545,7 +3734,7 @@ function removePlace(i){
   idx = -1; goTo(ni, 0); renderCards();
 }
 const setPlace = addPlace, openSheet = openCities, closeSheet = closeCities;
-window.__closeSheet = () => { if (findOpen() && !$('rv').classList.contains('parked')) { closeFind(); return 1; } if (usheet) { closeUpdate(); return 1; } if (ssheet) { closeSkyWeek(); return 1; } if (dsheet) { closeDay(); return 1; } if (!$('rv').classList.contains('parked') && !$('rv').hidden) { closeRadar(); return 1; } if (!$('life').hidden) { closeLife(); return 1; } if (!gm.hidden) { closeMenu(); return 1; } if (!$('cities').hidden && places.length) { closeCities(); return 1; } return 0; };
+window.__closeSheet = () => { if (asheet) { closeAlerts(); return 1; } if (findOpen() && !$('rv').classList.contains('parked')) { closeFind(); return 1; } if (usheet) { closeUpdate(); return 1; } if (ssheet) { closeSkyWeek(); return 1; } if (dsheet) { closeDay(); return 1; } if (!$('rv').classList.contains('parked') && !$('rv').hidden) { closeRadar(); return 1; } if (!$('life').hidden) { closeLife(); return 1; } if (!gm.hidden) { closeMenu(); return 1; } if (!$('cities').hidden && places.length) { closeCities(); return 1; } return 0; };
 $('placeBtn').onclick = openCities;
 $('placeName').onclick = () => { if (place) load(); else openCities(); };
 $('citiesBack').onclick = closeCities;

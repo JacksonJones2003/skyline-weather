@@ -58,7 +58,10 @@ public class WidgetKeepAliveService extends Service {
     private static final long RAIN_MS = 5 * 60 * 1000L;
     private final Runnable rainTick = new Runnable() {
         @Override public void run() {
-            new Thread(() -> { try { RainAlert.check(getApplicationContext()); } catch (Throwable ignored) { } }, "SkylineRain").start();
+            new Thread(() -> {
+                try { RainAlert.check(getApplicationContext()); } catch (Throwable ignored) { }
+                try { WeatherAlerts.check(getApplicationContext()); } catch (Throwable ignored) { }
+            }, "SkylineRain").start();
             handler.postDelayed(this, RAIN_MS);
         }
     };
@@ -76,7 +79,7 @@ public class WidgetKeepAliveService extends Service {
     }
 
     // runs for the widget, and for rain alerts even without a widget on the home screen
-    static boolean needed(Context c) { return hasWidgets(c) || RainAlert.enabled(c); }
+    static boolean needed(Context c) { return hasWidgets(c) || RainAlert.enabled(c) || WeatherAlerts.enabled(c); }
 
     static void start(Context c) {
         if (!needed(c)) return;
