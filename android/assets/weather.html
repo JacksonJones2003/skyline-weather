@@ -34,6 +34,13 @@ button:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2
 
 /* ---- sky scene ---- */
 .scene{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+/* Where the waterline is on the screen as the page scrolls (--sh: how far it has moved up) and how much of the water
+   is still showing (--wf), both driven by the scroll itself; the stars are cut off at that line (see #stars). */
+@property --sh{syntax:'<length>';inherits:true;initial-value:0px}
+@property --wf{syntax:'<number>';inherits:true;initial-value:1}
+.scene{animation:sceneShift linear both,sceneWater linear both;animation-timeline:scroll(root),scroll(root);animation-range:0 600px,0 260px}
+@keyframes sceneShift{to{--sh:600px}}
+@keyframes sceneWater{0%{--wf:1}20%{--wf:.94}45%{--wf:.66}70%{--wf:.28}88%{--wf:.07}100%{--wf:0}}
 .glow{position:absolute;left:38%;top:-6vh;width:120vw;height:120vw;max-width:900px;max-height:900px;transform:translate(-50%,-30%);
   background:radial-gradient(circle,rgba(255,252,235,1) 0 3%,rgba(255,246,214,.75) 6%,rgba(255,240,200,.25) 16%,rgba(255,255,255,0) 40%);transition:opacity 1s}
 /* the glow's bright core sits 20% of its size below its anchor point; the halo and the rays share that exact center */
@@ -94,7 +101,17 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
   animation:waterWaver 6s ease-in-out infinite}
 @keyframes waterWaver{0%,100%{transform:scale(1,-.86)}50%{transform:scale(1.01,-.89)}}
 /* clear nights: three star layers twinkling out of step, a dim crescent moon, and now and then a shooting star */
-#stars{position:absolute;inset:0;transition:opacity 1.5s}
+#stars{position:absolute;inset:0;transition:opacity 1.5s;
+  /* no stars under the water: they stop at the waterline (following it up as the page scrolls) and come back below
+     it only as the water itself fades away */
+  -webkit-mask-image:linear-gradient(#000 calc(var(--horizon,45vh) - var(--sh) - 1px),rgba(0,0,0,calc(1 - var(--wet,0) * var(--wf))) calc(var(--horizon,45vh) - var(--sh)));
+  mask-image:linear-gradient(#000 calc(var(--horizon,45vh) - var(--sh) - 1px),rgba(0,0,0,calc(1 - var(--wet,0) * var(--wf))) calc(var(--horizon,45vh) - var(--sh)))}
+/* ...and the same stars, mirrored in the water: a copy of the sky above the waterline, flipped, softer and dimmer */
+#starmirror{position:absolute;left:0;right:0;top:var(--horizon,45vh);height:var(--horizon,45vh);pointer-events:none;opacity:0;
+  -webkit-mask-image:linear-gradient(#000,rgba(0,0,0,.7) 25%,rgba(0,0,0,.3) 55%,transparent 85%);mask-image:linear-gradient(#000,rgba(0,0,0,.7) 25%,rgba(0,0,0,.3) 55%,transparent 85%)}
+#starmirror canvas{position:absolute;inset:0;width:100%;height:100%;filter:blur(.25px) brightness(1.25);animation:starShimmer 3.8s ease-in-out infinite alternate}
+@keyframes starShimmer{from{opacity:.75;transform:scaleX(1.004)}to{opacity:1;transform:scaleX(.996)}}
+@media (prefers-reduced-motion:reduce){#starmirror canvas{animation:none}}
 #stars canvas{position:absolute;inset:0;width:100%;height:100%}
 #stars canvas:nth-child(1){animation:twinkle 3.4s steps(34) infinite}
 #stars canvas:nth-child(2){animation:twinkle 4.6s steps(46) -1.7s infinite}
@@ -927,6 +944,7 @@ input{-webkit-user-select:text;user-select:text}
   <div class="suntint" id="suntint"></div>
   <div class="sunwash" id="sunwash"></div>
   <div id="waterLayer">
+    <div id="starmirror"><canvas></canvas></div>
     <div id="cloudmirror"><div class="flip"><div id="mirrorstrip"></div></div></div>
     <div class="water-reflection" id="waterReflection"></div>
     <canvas id="water"></canvas>
@@ -1536,6 +1554,19 @@ function drawStars(){
     ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
   }
 }
+// the stars between the top of the screen and the waterline, flipped upside down into the water (see #starmirror)
+let starMirrorKey = '';
+function drawStarMirror(){
+  const hz = parseFloat(lastHorizon) || innerHeight * .45, dpr = devicePixelRatio || 1, cv = $('starmirror').firstElementChild;
+  starMirrorKey = starSize + '|' + lastHorizon;
+  const w = Math.round(innerWidth * dpr), h = Math.round(hz * dpr);
+  if (!w || !h) return;
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d');
+  ctx.save(); ctx.translate(0, h); ctx.scale(1, -1);
+  for (const src of $('stars').children) if (src.width) ctx.drawImage(src, 0, 0, src.width, Math.min(src.height, h), 0, 0, w, Math.min(src.height, h));
+  ctx.restore();
+}
 function shootingStar(){
   if (!starsOn) return;
   if (!document.hidden) {
@@ -1801,6 +1832,9 @@ function particles(kind){
     const cbox=$('clouds'), cloudVis=cloudsBare ? 0 : (cbox.style.opacity==='' ? 1 : +cbox.style.opacity);
     cloudA += (cloudVis-cloudA)*(1-Math.exp(-step*16.667/350));
     const mo=waterOn ? (glowAlpha*.95*cloudA).toFixed(2) : '0';
+    { const sv=starsOn ? (+$('stars').style.opacity||0) : 0, so=waterOn ? (glowAlpha*.9*sv).toFixed(2) : '0', sm=$('starmirror');
+      if(sv && waterOn && starMirrorKey!==starSize+'|'+lastHorizon) drawStarMirror();
+      if(sm.style.opacity!==so) sm.style.opacity=so; }
     if(mo!==lastMirror){ lastMirror=mo; $('cloudmirror').style.opacity=mo;
       document.querySelector('.scene').style.setProperty('--wet', waterOn ? Math.min(1, glowAlpha*1.15).toFixed(2) : '0'); }
     const landAt=p=>py+Math.pow(p.d,1.8)*depth;                                // far drops land near the edge, near ones lower
