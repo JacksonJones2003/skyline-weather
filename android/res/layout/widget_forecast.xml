@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The next five days over the live sky (see ExtraWidgets). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_placeholder" android:clipToOutline="true">
+    <ImageView android:id="@+id/bg" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:scaleType="centerCrop" android:importantForAccessibility="no"/>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical"
+        android:padding="14dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+            <TextView android:id="@+id/fname" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF" android:textSize="14sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end"
+                android:shadowColor="#55000000" android:shadowRadius="3"/>
+            <TextView android:id="@+id/fnow" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#E6FFFFFF" android:textSize="13sp" android:maxLines="1"
+                android:shadowColor="#55000000" android:shadowRadius="3"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+            android:layout_marginTop="8dp" android:gravity="center_vertical">
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:orientation="vertical" android:gravity="center_horizontal">
+            <TextView android:id="@+id/d0n" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#E6FFFFFF" android:textSize="12sp" android:shadowColor="#55000000" android:shadowRadius="3"/>
+            <ImageView android:id="@+id/d0i" android:layout_width="28dp" android:layout_height="28dp" android:layout_marginTop="3dp"
+                android:importantForAccessibility="no"/>
+            <TextView android:id="@+id/d0p" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#FF9FD6FF" android:textSize="10sp"/>
+            <TextView android:id="@+id/d0h" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF" android:textSize="14sp" android:textStyle="bold" android:shadowColor="#55000000" android:shadowRadius="3"/>
+            <TextView android:id="@+id/d0l" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#B3FFFFFF" android:textSize="12sp" android:shadowColor="#55000000" android:shadowRadius="3"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:orientation="vertical" android:gravity="center_horizontal">
+            <TextView android:id="@+id/d1n" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#E6FFFFFF" android:textSize="12sp" android:shadowColor="#55000000" android:shadowRadius="3"/>
+            <ImageView android:id="@+id/d1i" android:layout_width="28dp" android:layout_height="28dp" android:layout_marginTop="3dp"
+                android:importantForAccessibility="no"/>
+            <TextView android:id="@+id/d1p" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#FF9FD6FF" android:textSize="10sp"/>
+            <TextView android:id="@+id/d1h" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF" android:textSize="14sp" android:textStyle="bold" android:shadowColor="#55000000" android:shadowRadius="3"/>
+            <TextView android:id="@+id/d1l" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#B3FFFFFF" android:textSize="12sp" android:shadowColor="#55000000" android:shadowRadius="3"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:orientation="vertical" android:gravity="center_horizontal">
+            <TextView android:id="@+id/d2n" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#E6FFFFFF" android:textSize="12sp" android:shadowColor="#55000000" android:shadowRadius="3"/>
+            <ImageView android:id="@+id/d2i" android:layout_width="28dp" android:layout_height="28dp" android:layout_marginTop="3dp"
+                android:importantForAccessibility="no"/>
+            <TextView android:id="@+id/d2p" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#FF9FD6FF" android:textSize="10sp"/>
+            <TextView android:id="@+id/d2h" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF" android:textSize="14sp" android:textStyle="bold" android:shadowColor="#55000000" android:shadowRadius="3"/>
+            <TextView android:id="@+id/d2l" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#B3FFFFFF" android:textSize="12sp" android:shadowColor="#55000000" android:shadowRadius="3"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:orientation="vertical" android:gravity="center_horizontal">
+            <TextView android:id="@+id/d3n" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#E6FFFFFF" android:textSize="12sp" android:shadowColor="#55000000" android:shadowRadius="3"/>
+            <ImageView android:id="@+id/d3i" android:layout_width="28dp" android:layout_height="28dp" android:layout_marginTop="3dp"
+                android:importantForAccessibility="no"/>
+            <TextView android:id="@+id/d3p" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#FF9FD6FF" android:textSize="10sp"/>
+            <TextView android:id="@+id/d3h" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF" android:textSize="14sp" android:textStyle="bold" android:shadowColor="#55000000" android:shadowRadius="3"/>
+            <TextView android:id="@+id/d3l" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#B3FFFFFF" android:textSize="12sp" android:shadowColor="#55000000" android:shadowRadius="3"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:orientation="vertical" android:gravity="center_horizontal">
+            <TextView android:id="@+id/d4n" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#E6FFFFFF" android:textSize="12sp" android:shadowColor="#55000000" android:shadowRadius="3"/>
+            <ImageView android:id="@+id/d4i" android:layout_width="28dp" android:layout_height="28dp" android:layout_marginTop="3dp"
+                android:importantForAccessibility="no"/>
+            <TextView android:id="@+id/d4p" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#FF9FD6FF" android:textSize="10sp"/>
+            <TextView android:id="@+id/d4h" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF" android:textSize="14sp" android:textStyle="bold" android:shadowColor="#55000000" android:shadowRadius="3"/>
+            <TextView android:id="@+id/d4l" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#B3FFFFFF" android:textSize="12sp" android:shadowColor="#55000000" android:shadowRadius="3"/>
+        </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

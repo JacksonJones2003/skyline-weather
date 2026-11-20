@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rain in the next 2 hours: a sentence and a 15-minute bar chart over the live sky (see ExtraWidgets). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_placeholder" android:clipToOutline="true">
+    <ImageView android:id="@+id/bg" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:scaleType="centerCrop" android:importantForAccessibility="no"/>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical"
+        android:padding="14dp">
+        <TextView android:id="@+id/rtitle" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textColor="#CCFFFFFF" android:textSize="12sp" android:maxLines="1" android:ellipsize="end"
+            android:shadowColor="#55000000" android:shadowRadius="3"/>
+        <TextView android:id="@+id/rhead" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="2dp" android:textColor="#FFFFFFFF" android:textSize="16sp" android:textStyle="bold"
+            android:maxLines="2" android:ellipsize="end" android:shadowColor="#66000000" android:shadowRadius="4"/>
+        <TextView android:id="@+id/rsub" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textColor="#B3FFFFFF" android:textSize="12sp" android:maxLines="1"
+            android:shadowColor="#55000000" android:shadowRadius="3"/>
+        <ImageView android:id="@+id/rbars" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+            android:layout_marginTop="8dp" android:scaleType="fitXY" android:importantForAccessibility="no"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp">
+            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Now"
+                android:textColor="#99FFFFFF" android:textSize="10sp"/>
+            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="1 hr"
+                android:gravity="center" android:textColor="#99FFFFFF" android:textSize="10sp"/>
+            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="2 hr"
+                android:gravity="end" android:textColor="#99FFFFFF" android:textSize="10sp"/>
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

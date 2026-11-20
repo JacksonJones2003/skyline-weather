@@ -61,6 +61,7 @@ public class WidgetKeepAliveService extends Service {
             new Thread(() -> {
                 try { RainAlert.check(getApplicationContext()); } catch (Throwable ignored) { }
                 try { WeatherAlerts.check(getApplicationContext()); } catch (Throwable ignored) { }
+                try { MorningBrief.check(getApplicationContext()); } catch (Throwable ignored) { }
             }, "SkylineRain").start();
             handler.postDelayed(this, RAIN_MS);
         }

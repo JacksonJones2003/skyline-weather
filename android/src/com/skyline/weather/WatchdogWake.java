@@ -12,9 +12,15 @@ import android.content.Intent;
 public class WatchdogWake extends BroadcastReceiver {
     static final String ACTION = "com.skyline.weather.WAKE";
 
-    static final String RAIN_TEST = "com.skyline.weather.RAIN_TEST", ALERT_TEST = "com.skyline.weather.ALERT_TEST";
+    static final String RAIN_TEST = "com.skyline.weather.RAIN_TEST", ALERT_TEST = "com.skyline.weather.ALERT_TEST", BRIEF_TEST = "com.skyline.weather.BRIEF_TEST";
 
     @Override public void onReceive(Context context, Intent intent) {
+        // testing aid: send today's morning summary now
+        if (intent != null && BRIEF_TEST.equals(intent.getAction())) {
+            final Context c = context.getApplicationContext(); final PendingResult pr = goAsync();
+            new Thread(() -> { try { MorningBrief.test(c); } finally { pr.finish(); } }).start();
+            return;
+        }
         // testing aid: run the rain check now (at the given spot, or the widget's) and write what it found to fetch.log;
         // it only reads public radar and, if asked, posts this app's own notification
         if (intent != null && (RAIN_TEST.equals(intent.getAction()) || ALERT_TEST.equals(intent.getAction()))) {

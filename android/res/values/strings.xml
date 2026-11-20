@@ -1,1 +1,1 @@
-<resources><string name="widget_desc">Current weather and the next few hours</string></resources>
+<resources><string name="widget_desc">Current weather and the next few hours</string><string name="widget_rain_desc">Rain in the next 2 hours</string><string name="widget_forecast_desc">The next five days</string></resources>

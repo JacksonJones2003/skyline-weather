@@ -149,6 +149,7 @@ public class WeatherWidget extends AppWidgetProvider {
         RemoteViews rv = build(c, json, name, unit, dp, sp.getLong("at", 0));
         rv.setOnClickPendingIntent(R.id.root, open);
         for (int id : ids) m.updateAppWidget(id, rv);
+        try { ExtraWidgets.update(c, fetch); } catch (Throwable t) { Diag.log(c, "extra widgets failed: " + t); }   // the rain and forecast widgets
         return !fetchFailed;
     }
 

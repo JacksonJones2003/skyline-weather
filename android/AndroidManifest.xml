@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.skyline.weather" android:versionCode="156" android:versionName="8.73">
+    package="com.skyline.weather" android:versionCode="157" android:versionName="8.74">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="36"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
@@ -38,6 +38,7 @@
                 <action android:name="com.skyline.weather.WAKE"/>
                 <action android:name="com.skyline.weather.RAIN_TEST"/>
                 <action android:name="com.skyline.weather.ALERT_TEST"/>
+                <action android:name="com.skyline.weather.BRIEF_TEST"/>
             </intent-filter>
         </receiver>
         <service android:name=".WidgetKeepAliveService" android:exported="false"
@@ -57,6 +58,14 @@
             </intent-filter>
         </receiver>
         <receiver android:name=".UpdateReceiver" android:exported="false"/>
+        <receiver android:name=".RainWidget" android:exported="true" android:label="Skyline Rain">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info_rain"/>
+        </receiver>
+        <receiver android:name=".ForecastWidget" android:exported="true" android:label="Skyline Forecast">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info_forecast"/>
+        </receiver>
         <receiver android:name=".WeatherWidget" android:exported="true" android:label="Skyline Weather">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>

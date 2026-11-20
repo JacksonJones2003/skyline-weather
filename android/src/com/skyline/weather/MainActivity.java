@@ -357,6 +357,12 @@ public class MainActivity extends Activity {
             if (on) runOnUiThread(MainActivity.this::askNotifications);
         }
         @JavascriptInterface public String takeAlertId() { String id = pendingAlert; pendingAlert = null; return id == null ? "" : id; }
+        // morning summary (the ⋮ menu): on / off and the time, in minutes after midnight
+        @JavascriptInterface public String morningBrief() { return (MorningBrief.enabled(MainActivity.this) ? "1," : "0,") + MorningBrief.at(MainActivity.this); }
+        @JavascriptInterface public void setMorningBrief(boolean on, int minutes) {
+            MorningBrief.set(MainActivity.this, on, minutes);
+            if (on) runOnUiThread(MainActivity.this::askNotifications);
+        }
         // rain alerts on / off (the ⋮ menu); turning them on asks for notification permission if needed
         @JavascriptInterface public boolean rainAlerts() { return RainAlert.enabled(MainActivity.this); }
         @JavascriptInterface public void setRainAlerts(boolean on) {
