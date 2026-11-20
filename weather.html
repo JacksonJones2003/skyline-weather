@@ -56,7 +56,14 @@ button:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2
 #rainbow.on{opacity:.75}
 #clouds{position:absolute;top:0;left:0;right:0;transition:opacity .6s,filter 1s}
 /* storm overcast belongs to the sky above the water: it slides up and away with the page as you scroll down */
-#clouds.wet,#cloudmirror{animation:cloudsAway linear both;animation-timeline:scroll(root);animation-range:0 600px}
+#clouds.wet{animation:cloudsAway linear both;animation-timeline:scroll(root);animation-range:0 600px}
+/* The water (its picture, the cloud reflection and the number's reflection) is one layer drawn at its place on the
+   page; the phone's compositor slides it up with the page and fades it over the first 260 px, in step with the
+   finger, so it never lags behind the scroll. The rain falls on its own screen-fixed canvas (#fx) above it. */
+#waterLayer{position:absolute;inset:0;pointer-events:none;
+  animation:cloudsAway linear both,waterFade linear both;animation-timeline:scroll(root),scroll(root);animation-range:0 600px,0 260px}
+@keyframes waterFade{0%{opacity:1}20%{opacity:.94}45%{opacity:.66}70%{opacity:.28}88%{opacity:.07}100%{opacity:0}}
+canvas#water{position:absolute;left:0;top:0;width:100%;height:100%}
 /* over water the clouds stop at the waterline (--horizon, the foot of the big number, set by the rain loop). The cut
    follows how much water is showing (--wet, 0-1): as the water fades away (a swipe, a pull, scrolling) the clouds
    below the line fade back in with it, so there's never a hard edge with no water under it */
@@ -198,6 +205,7 @@ canvas#fx{position:absolute;inset:0;width:100%;height:100%}
 .hcol{position:relative}
 .hl{transform-origin:0 0}
 .hourly .hrain{animation:hrainIn .5s ease-out}
+.hcurve .lb.under{visibility:hidden}   /* the temperature label the snapped bead sits on (the bead shows it) */
 .hourly .hrain .rbar{fill:url(#rg)}
 .hourly .hrain .rbar.snow{fill:rgba(255,255,255,.92)}
 .hourly .hrain .ramt.snow{fill:#fff}
@@ -829,7 +837,46 @@ input{-webkit-user-select:text;user-select:text}
 .ccard{position:relative;height:86px;border-radius:18px;overflow:hidden;color:#fff;padding:0 20px;display:flex;justify-content:space-between;align-items:center;
   cursor:pointer;box-shadow:0 2px 8px rgba(20,40,90,.12);text-shadow:0 1px 3px rgba(0,30,80,.3);transition:transform .15s}
 .ccard:active{transform:scale(.98)}
+/* the card's live sky (see cardSky): behind the text, clipped to the card */
+.ccard > :not(.csky){position:relative;z-index:1}
+.ccard > .del{position:absolute;z-index:2}
+.csky{position:absolute;inset:0;overflow:hidden;pointer-events:none;border-radius:inherit}
+.csky i{position:absolute;display:block}
+.csky .cl{top:0;left:0;width:300%;height:100%;background-repeat:no-repeat;background-size:33.34% auto;background-position:0 0,50% 0,100% 0;
+  animation:cDrift 120s ease-in-out infinite alternate}
+.csky .cl{opacity:.72}                                          /* softer by day, so white text stays readable */
+.csky.k-snow .cl,.csky.k-cloud .cl,.csky.k-fog .cl{opacity:.6;filter:brightness(.88)}
+.csky.night .cl{opacity:1;filter:brightness(.45) saturate(.85)}
+.csky.k-rain .cl{opacity:.85;filter:brightness(.66) saturate(.6)}
+.csky.k-storm .cl{opacity:.9;filter:brightness(.5) contrast(.9) saturate(.5)}
+.csky.night.k-rain .cl,.csky.night.k-storm .cl{filter:brightness(.36) saturate(.7)}
+@keyframes cDrift{to{transform:translateX(-66.66%)}}
+.csky .st{inset:0;background-image:radial-gradient(1px 1px at 20% 30%,#fff,transparent),radial-gradient(1px 1px at 70% 60%,#fff,transparent),
+  radial-gradient(1.2px 1.2px at 45% 80%,#fff,transparent),radial-gradient(1px 1px at 85% 20%,#fff,transparent);background-size:83px 47px;opacity:.75;
+  animation:cTwinkle 3.2s ease-in-out infinite alternate}
+.csky .st.b{background-size:131px 71px;background-position:37px 19px;animation-duration:4.6s;animation-delay:-2s}
+@keyframes cTwinkle{from{opacity:.25}to{opacity:.85}}
+.csky .sg{width:180px;height:180px;left:-40px;top:-90px;border-radius:50%;background:radial-gradient(circle,rgba(255,244,200,.55),rgba(255,230,160,0) 68%);
+  animation:cGlow 6s ease-in-out infinite alternate}
+@keyframes cGlow{to{opacity:.55;transform:scale(1.12)}}
+.csky .rn{left:-20%;width:140%;top:-114px;height:calc(100% + 114px);
+  background-image:radial-gradient(.8px 8px at 50% 50%,rgba(220,235,255,.6),transparent);background-size:23px 57px;animation:cRain .55s linear infinite}
+.csky .rn.b{background-size:37px 57px;background-position:11px 23px;animation-duration:.7s;opacity:.7}
+.csky.k-storm .rn{transform-origin:0 0;rotate:14deg;animation-duration:.4s}
+@keyframes cRain{to{translate:0 114px}}
+.csky .sn{left:0;width:100%;top:-120px;height:calc(100% + 120px);
+  background-image:radial-gradient(1.6px 1.6px at 50% 50%,#fff,transparent);background-size:29px 40px;animation:cSnow 6s linear infinite}
+.csky .sn.b{background-size:47px 60px;background-position:13px 9px;animation-duration:9s;opacity:.7}
+@keyframes cSnow{from{transform:translate(0,0)}50%{transform:translate(6px,60px)}to{transform:translate(0,120px)}}
+.csky .mi{top:0;left:-50%;width:200%;height:100%;background:linear-gradient(90deg,transparent,rgba(235,240,245,.35) 30%,transparent 55%,rgba(235,240,245,.28) 80%,transparent);
+  animation:cMist 26s ease-in-out infinite alternate}
+@keyframes cMist{to{transform:translateX(25%)}}
+.csky .fl{inset:0;background:radial-gradient(circle at 70% 10%,rgba(235,240,255,.55),rgba(200,215,255,.12) 60%,transparent);opacity:0;animation:cFlash 9s linear infinite}
+@keyframes cFlash{0%,90%,93.5%,100%{opacity:0}91%{opacity:.9}92%{opacity:.15}92.8%{opacity:.6}}
+@media (prefers-reduced-motion:reduce){.csky i{animation:none!important}}
+.cities[hidden] .csky i{animation:none}
 .ccard .n{font-size:19px;font-weight:600;display:flex;align-items:center;gap:5px}
+.ccard{text-shadow:0 1px 3px rgba(0,30,80,.45),0 0 10px rgba(0,30,80,.25)}   /* a little more lift over moving clouds */
 .ccard .n svg{width:15px;height:15px}
 .ccard .c{font-size:13px;opacity:.92;margin-top:3px}
 .ccard .tp{font-size:36px;font-weight:500;font-variant-numeric:tabular-nums}
@@ -879,8 +926,11 @@ input{-webkit-user-select:text;user-select:text}
   <div id="rainbow"></div>
   <div class="suntint" id="suntint"></div>
   <div class="sunwash" id="sunwash"></div>
-  <div id="cloudmirror"><div class="flip"><div id="mirrorstrip"></div></div></div>
-  <div class="water-reflection" id="waterReflection"></div>
+  <div id="waterLayer">
+    <div id="cloudmirror"><div class="flip"><div id="mirrorstrip"></div></div></div>
+    <div class="water-reflection" id="waterReflection"></div>
+    <canvas id="water"></canvas>
+  </div>
   <!-- how water bends a reflection: fine horizontal ripples of noise push each slice of it sideways, slowly changing -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
     <filter id="waterBend" x="-12%" y="-12%" width="124%" height="124%" color-interpolation-filters="sRGB">
@@ -1302,7 +1352,7 @@ function drawClouds(kind, day, bare = false){
   const box = $('clouds');
   const set = CLOUD_SET[kind];
   cloudsBare = bare;
-  const wet = kind === 'rain' || kind === 'storm';
+  const wet = kind !== 'snow';                              // there's water under the sky in every weather but snow
   box.classList.toggle('wet', wet);
   if (!wet) $('cloudmirror').style.opacity = 0;
   if (set !== cloudSet) {
@@ -1572,12 +1622,12 @@ function nextPreview(){
   document.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('.hero')) e.preventDefault(); });
 }
 
-// the glow under the number fades out as soon as the page moves (scrolling or pulling down) and
-// eases back in once the top of the page settles back into place
+// How much of the water scene shows: it melts away gradually over the first 260 px of scrolling down (an eased
+// curve, so it starts and ends softly), and fades for a pull-to-refresh; the water and reflections follow it
 let pullFade = 1, lastHg = '';
 function heroGlow(){
   // set on the hero itself and only when it changes: writing it on the page root restyled the whole page every frame
-  const v = (Math.max(0, 1 - window.scrollY / 60) * pullFade).toFixed(2), hero = document.querySelector('.hero');
+  const f = Math.max(0, 1 - window.scrollY / 260), v = (f * f * (3 - 2 * f) * pullFade).toFixed(3), hero = document.querySelector('.hero');
   if (!hero || (v === lastHg && hero.style.getPropertyValue('--hg') === v)) return;
   lastHg = v; hero.style.setProperty('--hg', v);
 }
@@ -1631,6 +1681,25 @@ function strike(){
 }
 window.__strike = () => strike();   // test hook
 let lastHorizon='', lastMirror='', windTest=null;
+// ---- shake the phone and the water is troubled: a burst of rings and wobbling reflections that settle again ----
+let stir=0, stirAt=0, stirFn=null;                       // how stirred up the water is (0 calm .. 1), and the ring burst
+function troubleWater(power){
+  power=Math.max(.2,Math.min(1,power));
+  stir=Math.min(1.2,stir+power); stirAt=performance.now();
+  if(stirFn) stirFn(power);
+}
+{
+  let ax=null, ay=null, az=null, lastShake=0;
+  addEventListener('devicemotion', e => {
+    const g=e.accelerationIncludingGravity; if(!g || g.x==null) return;
+    if(ax!=null){
+      const jerk=Math.hypot(g.x-ax, g.y-ay, g.z-az), now=performance.now();   // a sudden change in the phone's motion
+      if(jerk>13 && now-lastShake>220){ lastShake=now; troubleWater((jerk-10)/22); }
+    }
+    ax=g.x; ay=g.y; az=g.z;
+  }, {passive:true});
+}
+window.__shake = p => troubleWater(p ?? .8);              // test hook
 // The rain's slant from the live wind: only its east-west part counts (east to the right, west to the left), as
 // pixels across per pixel down. It grows with the wind and levels off (tanh), so even a gale tops out near 32 degrees
 // and the rain never goes flat or breaks up. Storms are gustier, so their wind counts a little more.
@@ -1651,32 +1720,45 @@ function particles(kind){
   cancelAnimationFrame(raf);
   // rain and snow are soft streaks and dots: 1.5x resolution is plenty, and on a 3x phone screen it's a quarter of the pixels
   const cv=$('fx'), ctx=cv.getContext('2d'), dpr=Math.min(devicePixelRatio||1, 1.5);
-  const size=()=>{cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;};
+  const wcv=$('water'), wctx=wcv.getContext('2d');                         // the water, on the scrolling water layer
+  const size=()=>{cv.width=wcv.width=innerWidth*dpr;cv.height=wcv.height=innerHeight*dpr;};
   size(); onresize=size;
-  ctx.clearRect(0,0,cv.width,cv.height);
-  const type = kind==='rain'||kind==='storm' ? 'rain' : kind==='snow' ? 'snow' : null;
-  $('waterReflection').classList.toggle('live', type==='rain');
-  if (type!=='rain') { $('waterReflection').style.opacity='0'; $('cloudmirror').style.opacity=0; lastMirror='0'; document.querySelector('.scene').style.setProperty('--wet','0'); }   // leaving the rain: reflections go with the water
-  if (!type || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  ctx.clearRect(0,0,cv.width,cv.height); wctx.clearRect(0,0,wcv.width,wcv.height);
+  // The water under the number is there in every weather but snow: calm on a dry day (no drops), with rain falling
+  // into it when it rains. Snow covers it with a snowfield instead.
+  const type = kind==='rain'||kind==='storm' ? 'rain' : kind==='snow' ? 'snow' : 'calm', water = type!=='snow';
+  $('waterReflection').classList.toggle('live', water);
+  if (!water) { $('waterReflection').style.opacity='0'; $('cloudmirror').style.opacity=0; lastMirror='0'; document.querySelector('.scene').style.setProperty('--wet','0'); }   // snow: no water, no reflections
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   // thunderstorms: a downpour, more drops, falling faster and driven sideways by the wind
   // the wind's angle: each streak leans `slant` across for every pixel down (from rainSlant, eased so a change in the
   // wind turns the rain over a few seconds), and each drop travels along that same line
-  const fierce = kind==='storm', N = type==='rain'?(fierce?260:110):80;
+  const fierce = kind==='storm', N = type==='rain'?(fierce?260:110):type==='snow'?80:0;
   let slant = type==='rain' ? rainSlant(fierce) : 0;
   // Rain is time-based, so it keeps the same calmer speed at 60, 90 or 120 Hz.
   // The drops move at 62% of their old rate, with a little natural variation.
   parts = Array.from({length:N},()=>({x:Math.random(),y:Math.random(),v:(type==='rain'?.0075+Math.random()*.006:.0015+Math.random()*.002)*(fierce?1.55:1),r:Math.random(),d:Math.random()}));
-  let last=0, ripples=[], waterA=0, numA=0, snowAge=0, drift=null;
+  let last=0, ripples=[], waterA=0, numA=0, snowAge=0, drift=null, lastPy=0, lastDepth=0, cloudA=0;
+  // a shake: big rings all over the water at once, more for a harder shake
+  stirFn = power => {
+    if(!lastDepth) return;
+    const now=performance.now(), n=Math.round(6+power*14);
+    for(let k=0;k<n;k++){
+      const f=Math.pow(Math.random(),1.6), ly=lastPy+f*lastDepth, s=.45+f*.95;
+      ripples.push({x:Math.random()*cv.width,y:ly,t:now+Math.random()*350,life:1100+Math.random()*700,rx:(2.2+power*1.6)*s*dpr,s,big:true,side:Math.random()<.5?-1:1});
+    }
+    if(ripples.length>260) ripples.splice(0,ripples.length-260);
+  };
   // The water's texture: short soft wavelets, small and tightly packed near the horizon and larger and sparser close
   // up, light and dark mixed. Drawn once into a tile as wide as the screen (it wraps), then slid across the water.
   let tex=null, texKey='';
   const waterTexture=(w,h)=>{
     const key=w+'x'+Math.round(h); if(tex && texKey===key) return tex; texKey=key;
     const t=document.createElement('canvas'); t.width=w; t.height=Math.max(1,Math.round(h)); const g=t.getContext('2d');
-    for(let i=0;i<Math.round(w/dpr*3.2);i++){
+    for(let i=0;i<Math.round(w/dpr*1.6);i++){                                // about half as many as before: a smoother surface
       const f=Math.pow(Math.random(),1.6), y=f*t.height, near=.25+f*1.15, x=Math.random()*w;
       const len=(5+Math.random()*16)*near*dpr, th=(.45+.7*near)*dpr, light=Math.random()<.72;
-      const a=(light?.05+Math.random()*.09:.04+Math.random()*.06)*Math.pow(1-f,.55);
+      const a=(light?.025+Math.random()*.045:.02+Math.random()*.03)*Math.pow(1-f,.55);   // and half as strong
       g.fillStyle=light?`rgba(225,242,255,${a.toFixed(3)})`:`rgba(18,45,85,${a.toFixed(3)})`;
       for(const dx of [0,-w,w]){ g.beginPath(); g.ellipse(x+dx,y,len,th,0,0,Math.PI*2); g.fill(); }   // drawn across the seam so it wraps
     }
@@ -1684,17 +1766,19 @@ function particles(kind){
   };
   const tick=()=>{
     const now=performance.now();
-    if(last && now-last<15){raf=requestAnimationFrame(tick);return;}   // at most 60 frames a second, even on a 120 Hz screen
+    if(last && now-last<(type==='calm'?31:15)){raf=requestAnimationFrame(tick);return;}   // at most 60 frames a second (30 for calm water, which moves slowly)
     const step=last?Math.min((now-last)/16.667,2):1; last=now;
-    ctx.clearRect(0,0,cv.width,cv.height);
-    // the water's far edge (its horizon) is the foot of the big number, so the number stands right on the water
-    const numEl=document.querySelector('.bignum .temp'), rect=numEl?.getBoundingClientRect();
-    const py=(rect && rect.height ? rect.bottom-2 : innerHeight*.45)*dpr;
+    ctx.clearRect(0,0,cv.width,cv.height); wctx.clearRect(0,0,wcv.width,wcv.height);
+    // the water's far edge (its horizon) is the foot of the big number, so the number stands right on the water.
+    // pyW is where that is on the page (the water layer's own coordinates, as at the top of the page); py is where
+    // it is on the screen right now, for the rain falling into it.
+    const numEl=document.querySelector('.bignum .temp'), rect=numEl?.getBoundingClientRect(), sy=scrollY;
+    const pyW=(rect && rect.height ? rect.bottom-2+sy : innerHeight*.45)*dpr, py=pyW-sy*dpr;
     if(rect && rect.height){ const hz=Math.round(rect.bottom-2+scrollY)+'px';   // clouds and their reflection meet here
       if(hz!==lastHorizon){ lastHorizon=hz; document.querySelector('.scene').style.setProperty('--horizon',hz); } }
-    // how strongly the water shows: it follows the page down at once as you scroll away, but swells back in gently
-    // (about a second) when you return to the top, rather than popping back
-    const target=lastHg==='' ? 1 : Math.max(0,parseFloat(lastHg)||0);         // the hero glow's current strength (see heroGlow)
+    // how strongly the water shows apart from scrolling (the layer's own fade handles that): it dips for a
+    // pull-to-refresh and swells back in gently afterwards
+    const target=Math.max(0,Math.min(1,pullFade));
     const swell=1-Math.exp(-step*16.667/380);
     waterA = target<waterA ? target : waterA+(target-waterA)*swell;
     const glowAlpha=waterA;
@@ -1703,24 +1787,36 @@ function particles(kind){
     // new drops come in along the top, widened upwind so the slanted rain still covers the whole screen
     const spawnX=()=>lean>=0 ? Math.random()*(1+lean)-lean : Math.random()*(1-lean);
     // the water reaches across the whole screen, from its far edge (py, just under the number) down toward you
-    const waterOn=type==='rain' && py>0 && py<cv.height && glowAlpha>.05, depth=cv.height*.24;
-    const mo=waterOn ? (glowAlpha*.95).toFixed(2) : '0';
+    const depth=cv.height*.24, shown=Math.max(0,1-sy/260);                    // shown: roughly the layer's scroll fade
+    const waterOn=water && pyW>0 && pyW<wcv.height && glowAlpha>.05 && sy<600;
+    const lands=waterOn && shown>.15 && py>0 && py<cv.height;                  // drops land in it only while it's there to see
+    lastPy=pyW; lastDepth=waterOn?depth:0;
+    // the stirring dies away over a second or two
+    if(stir>0){ stir*=Math.exp(-(now-stirAt)/1100); stirAt=now; if(stir<.01) stir=0; }
+    const slosh=stir*Math.sin(now/1000*9.5), bend=$('waterBend')?.querySelector('feDisplacementMap');
+    if(bend){ const sc=(7+stir*34).toFixed(1); if(bend.getAttribute('scale')!==sc) bend.setAttribute('scale',sc); }
+    { const m=$('cloudmirror'), tr=stir>0?`${(slosh*9).toFixed(1)}px ${(Math.abs(slosh)*3).toFixed(1)}px`:''; if(m.style.translate!==tr) m.style.translate=tr; }
+    // the clouds' reflection only shows as much as the clouds themselves do: none under a cloudless sky, and it
+    // fades in and out with them (the cloud layer's own opacity; 0 while a sky has no clouds or they're loading)
+    const cbox=$('clouds'), cloudVis=cloudsBare ? 0 : (cbox.style.opacity==='' ? 1 : +cbox.style.opacity);
+    cloudA += (cloudVis-cloudA)*(1-Math.exp(-step*16.667/350));
+    const mo=waterOn ? (glowAlpha*.95*cloudA).toFixed(2) : '0';
     if(mo!==lastMirror){ lastMirror=mo; $('cloudmirror').style.opacity=mo;
       document.querySelector('.scene').style.setProperty('--wet', waterOn ? Math.min(1, glowAlpha*1.15).toFixed(2) : '0'); }
     const landAt=p=>py+Math.pow(p.d,1.8)*depth;                                // far drops land near the edge, near ones lower
-    const groundOn=type==='snow' && py>0 && py<cv.height && glowAlpha>.05;
+    const groundOn=type==='snow' && pyW>0 && pyW<wcv.height && glowAlpha>.05 && sy<600, settles=groundOn && shown>.15 && py>0 && py<cv.height;
     if(type==='snow') snowAge=Math.min(1,snowAge+step*16.667/45000);            // the snowfield builds up over about 45 s
     for(const p of parts){
       const oldY=p.y;
       p.y+=p.v*step;
       // rain moves along its own streak: `slant` pixels across for every pixel down (in screen pixels, not fractions)
       if(type==='rain') p.x+=p.v*step*slant*cv.height/cv.width;
-      const ly=waterOn||groundOn?landAt(p):Infinity;
-      if(groundOn && oldY*cv.height<ly && p.y*cv.height>=ly){ p.y=-.04-Math.random()*.12; p.d=Math.random(); p.x=Math.random(); continue; }   // a flake settles
+      const ly=lands||settles?landAt(p):Infinity;
+      if(settles && oldY*cv.height<ly && p.y*cv.height>=ly){ p.y=-.04-Math.random()*.12; p.d=Math.random(); p.x=Math.random(); continue; }   // a flake settles
       if(oldY*cv.height<ly && p.y*cv.height>=ly){
         // a ring where it lands: small out by the far edge, larger close up (perspective)
         { const near=(ly-py)/depth, s=.45+near*.95, big=Math.random()<.25;
-          ripples.push({x:p.x*cv.width,y:ly,t:now,life:big?700+Math.random()*300:300+Math.random()*120,rx:(big?2.5:1.2)*s*dpr,s,big,side:Math.random()<.5?-1:1});
+          ripples.push({x:p.x*cv.width,y:ly+sy*dpr,t:now,life:big?700+Math.random()*300:300+Math.random()*120,rx:(big?2.5:1.2)*s*dpr,s,big,side:Math.random()<.5?-1:1});
           if(ripples.length>220) ripples.splice(0,ripples.length-220); }
         p.y=-.04-Math.random()*.12; p.d=Math.random(); if(type==='rain') p.x=spawnX();   // landed: back in at the top, anywhere along it
       }
@@ -1730,11 +1826,11 @@ function particles(kind){
       if(p.y>1 || (type==='rain' && (p.x>1.03+Math.max(0,-lean) || p.x<-.03-Math.max(0,lean)))){ p.y=-.05; p.x=type==='rain'?spawnX():Math.random(); }   // back in at the top, upwind
       const x=p.x*cv.width,y=p.y*cv.height;
       if(type==='rain'){
-        if(!(waterOn && y>=landAt(p))){
+        if(!(lands && y>=landAt(p))){
           if(fierce){ctx.strokeStyle='rgba(225,238,255,.5)';ctx.lineWidth=1.4*dpr;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+slant*19*dpr,y+19*dpr);ctx.stroke();}
           else{ctx.strokeStyle='rgba(220,235,255,.38)';ctx.lineWidth=1.2*dpr;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+slant*12*dpr,y+12*dpr);ctx.stroke();}
         }
-      } else if(!(groundOn && y>=landAt(p))){ctx.fillStyle='rgba(255,255,255,.8)';ctx.beginPath();ctx.arc(x,y,(1.2+p.r*2)*dpr,0,7);ctx.fill();}
+      } else if(!(settles && y>=landAt(p))){ctx.fillStyle='rgba(255,255,255,.8)';ctx.beginPath();ctx.arc(x,y,(1.2+p.r*2)*dpr,0,7);ctx.fill();}
     }
     if(groundOn){
       // Settled snow: a soft white field from the foot of the number toward you, with a gently uneven top edge and a
@@ -1742,82 +1838,86 @@ function particles(kind){
       const a=glowAlpha*(.35+.65*snowAge), w=cv.width;
       if(!drift || drift.w!==w) drift={w, ph:[Math.random()*6,Math.random()*6,Math.random()*6],
         glints:Array.from({length:Math.round(w/dpr/9)},()=>({x:Math.random(),f:Math.pow(Math.random(),1.5),p:Math.random()*6,v:.6+Math.random()*1.6}))};
-      const edge=x=>py-(1.5+2.2*snowAge)*dpr*(1+Math.sin(x/w*7+drift.ph[0])*.6+Math.sin(x/w*17+drift.ph[1])*.3+Math.sin(x/w*31+drift.ph[2])*.15);
-      const g=ctx.createLinearGradient(0,py-6*dpr,0,py+depth*1.1);
+      const edge=x=>pyW-(1.5+2.2*snowAge)*dpr*(1+Math.sin(x/w*7+drift.ph[0])*.6+Math.sin(x/w*17+drift.ph[1])*.3+Math.sin(x/w*31+drift.ph[2])*.15);
+      const g=wctx.createLinearGradient(0,pyW-6*dpr,0,pyW+depth*1.1);
       g.addColorStop(0,`rgba(250,252,255,${(.62*a).toFixed(3)})`);g.addColorStop(.12,`rgba(236,244,255,${(.42*a).toFixed(3)})`);
       g.addColorStop(.5,`rgba(220,233,252,${(.2*a).toFixed(3)})`);g.addColorStop(1,'rgba(210,228,250,0)');
-      ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(0,edge(0));
-      for(let x=0;x<=w;x+=8*dpr) ctx.lineTo(x,edge(x));
-      ctx.lineTo(w,py+depth*1.1);ctx.lineTo(0,py+depth*1.1);ctx.closePath();ctx.fill();
+      wctx.fillStyle=g;wctx.beginPath();wctx.moveTo(0,edge(0));
+      for(let x=0;x<=w;x+=8*dpr) wctx.lineTo(x,edge(x));
+      wctx.lineTo(w,pyW+depth*1.1);wctx.lineTo(0,pyW+depth*1.1);wctx.closePath();wctx.fill();
       for(const q of drift.glints){
         const tw=.5+.5*Math.sin(now/1000*q.v+q.p); if(tw<.55) continue;
-        ctx.fillStyle=`rgba(255,255,255,${((tw-.55)*1.6*a*(1-q.f*.6)).toFixed(3)})`;
-        ctx.beginPath();ctx.arc(q.x*w,py+q.f*depth*.8,(.6+q.f*1.1)*dpr,0,7);ctx.fill();
+        wctx.fillStyle=`rgba(255,255,255,${((tw-.55)*1.6*a*(1-q.f*.6)).toFixed(3)})`;
+        wctx.beginPath();wctx.arc(q.x*w,pyW+q.f*depth*.8,(.6+q.f*1.1)*dpr,0,7);wctx.fill();
       }
     }
-    if(type==='rain'){
+    if(water){
       // Vivo-style water: softly blended reflection, warped by moving waves, with
       // separate specular rings. Avoid a hard-edged pool silhouette.
-      if(py>0 && py<cv.height && glowAlpha>.05){
+      if(waterOn){
         const cx=cv.width/2;
-        ctx.save();ctx.globalAlpha=glowAlpha;
+        wctx.save();wctx.globalAlpha=glowAlpha;
         // Open water: one smooth sheet across the whole screen, deepest blue at the far edge and fading toward you,
         // with a soft patch of light drifting slowly across it. No lines or bands, so it reads as one body of water.
-        const body=ctx.createLinearGradient(0,py-2*dpr,0,py+depth*1.15);
+        const body=wctx.createLinearGradient(0,pyW-2*dpr,0,pyW+depth*1.15);
         body.addColorStop(0,'rgba(150,200,236,0)');body.addColorStop(.04,'rgba(150,200,236,.30)');body.addColorStop(.3,'rgba(100,160,210,.18)');
         body.addColorStop(.7,'rgba(70,125,180,.07)');body.addColorStop(1,'rgba(60,110,165,0)');
-        ctx.fillStyle=body;ctx.fillRect(0,py-2*dpr,cv.width,depth*1.15+2*dpr);
+        wctx.fillStyle=body;wctx.fillRect(0,pyW-2*dpr,cv.width,depth*1.15+2*dpr);
         // texture: two layers of wavelets drifting slowly in opposite directions, so the surface shimmers
-        const wt=waterTexture(cv.width,depth*1.1), o1=(now*.009*dpr)%cv.width, o2=(now*.0055*dpr)%cv.width;
-        ctx.drawImage(wt,o1,py);ctx.drawImage(wt,o1-cv.width,py);
-        ctx.save();ctx.globalAlpha=glowAlpha*.6;ctx.scale(-1,1);
-        ctx.drawImage(wt,-cv.width+o2,py);ctx.drawImage(wt,-2*cv.width+o2,py);ctx.restore();
-        const drift=now/1000, gx=cx+Math.sin(drift*.18)*cv.width*.18, gy=py+depth*.28;
-        ctx.save();ctx.translate(gx,gy);ctx.scale(1,.28);
-        const glint=ctx.createRadialGradient(0,0,0,0,0,cv.width*.55);
+        // (a shake sloshes them back and forth and makes them stand out more for a moment)
+        const wt=waterTexture(cv.width,depth*1.1), o1=((now*.009+slosh*28)*dpr%cv.width+cv.width)%cv.width, o2=((now*.0055-slosh*20)*dpr%cv.width+cv.width)%cv.width;
+        if(stir>.02){ wctx.save(); wctx.globalAlpha=Math.min(1,glowAlpha*stir*1.4); wctx.drawImage(wt,o2,pyW+2*dpr);wctx.drawImage(wt,o2-cv.width,pyW+2*dpr); wctx.restore(); }
+        wctx.drawImage(wt,o1,pyW);wctx.drawImage(wt,o1-cv.width,pyW);
+        wctx.save();wctx.globalAlpha=glowAlpha*.4;wctx.scale(-1,1);
+        wctx.drawImage(wt,-cv.width+o2,pyW);wctx.drawImage(wt,-2*cv.width+o2,pyW);wctx.restore();
+        const drift=now/1000, gx=cx+Math.sin(drift*.18)*cv.width*.18, gy=pyW+depth*.28;
+        wctx.save();wctx.translate(gx,gy);wctx.scale(1,.28);
+        const glint=wctx.createRadialGradient(0,0,0,0,0,cv.width*.55);
         glint.addColorStop(0,'rgba(215,236,255,.13)');glint.addColorStop(.5,'rgba(200,228,255,.05)');glint.addColorStop(1,'rgba(200,228,255,0)');
-        ctx.fillStyle=glint;ctx.beginPath();ctx.arc(0,0,cv.width*.55,0,Math.PI*2);ctx.fill();ctx.restore();
+        wctx.fillStyle=glint;wctx.beginPath();wctx.arc(0,0,cv.width*.55,0,Math.PI*2);wctx.fill();wctx.restore();
         // Reflect the exact live temperature styling, then let the animated water
         // layer above it add refraction and rain ripples.
         // the number's reflection is measured from its live styling, which costs a restyle: skip it while the page scrolls
+        // it sits on the page (the water layer carries it up and fades it as you scroll), so it's only measured while
+        // the page is still; measuring restyles the page
         const tempEl=scrolling?null:document.querySelector('.temp'), tr=tempEl?.getBoundingClientRect();
-        if(scrolling){ numA=0; $('waterReflection').style.opacity='0'; }
-        else if(tr && tempEl.textContent.trim()){
+        if(tr && tempEl.textContent.trim()){
           const el=$('waterReflection'), cs=getComputedStyle(tempEl);
-          el.textContent=tempEl.textContent.trim();el.style.left=tr.left+'px';el.style.top=(py/dpr-tr.height)+'px';
+          el.textContent=tempEl.textContent.trim();el.style.left=tr.left+'px';el.style.top=(pyW/dpr-tr.height)+'px';
           el.style.width=tr.width+'px';el.style.height=tr.height+'px';el.style.fontFamily=cs.fontFamily;el.style.fontSize=cs.fontSize;
           el.style.fontWeight=cs.fontWeight;el.style.lineHeight=cs.lineHeight;el.style.letterSpacing=cs.letterSpacing;
           el.style.backgroundImage=cs.backgroundImage;el.style.backgroundSize='100% 100%';el.style.backgroundPosition='center';el.style.backgroundRepeat='no-repeat';
           el.style.webkitBackgroundClip='text';el.style.backgroundClip='text';el.style.webkitTextFillColor='transparent';
-          // the number's reflection is hidden while the page moves; afterwards it swells back in like the water
           const want=glowAlpha*.86; numA = want<numA ? want : numA+(want-numA)*swell;
           el.style.opacity=numA.toFixed(3);
+          el.style.translate=stir>0?`${(slosh*7).toFixed(1)}px 0`:'';   // the reflection rocks with the water (a shake)
         }
-        ctx.restore();
+        wctx.restore();
       } else if(numA){ numA=0; $('waterReflection').style.opacity='0'; }   // no water showing: no reflection either
-      ctx.save(); ctx.globalCompositeOperation='screen';
+      wctx.save(); wctx.globalCompositeOperation='screen';
       ripples=ripples.filter(q=>now-q.t<q.life);
       for(const q of ripples){
+        if(now<q.t) continue;                                        // a shake's rings start a moment apart
         const u=(now-q.t)/q.life, sc=q.s||1;
         if(q.big){                                                   // the wide ring that spreads out slowly
           const a=(1-u)*.7*glowAlpha;
-          ctx.strokeStyle=`rgba(240,250,255,${a.toFixed(3)})`;ctx.lineWidth=(1.4-u*.6)*dpr*Math.min(1.2,.7+sc*.4);
-          ctx.beginPath();ctx.ellipse(q.x,q.y,q.rx+u*28*dpr*sc,(1.2+u*4.4)*dpr*sc,0,0,Math.PI*2);ctx.stroke();
+          wctx.strokeStyle=`rgba(240,250,255,${a.toFixed(3)})`;wctx.lineWidth=(1.4-u*.6)*dpr*Math.min(1.2,.7+sc*.4);
+          wctx.beginPath();wctx.ellipse(q.x,q.y,q.rx+u*28*dpr*sc,(1.2+u*4.4)*dpr*sc,0,0,Math.PI*2);wctx.stroke();
         } else {                                                     // the quick impact ring every drop makes
           const a=(1-u)*(1-u)*.75*glowAlpha;
-          ctx.strokeStyle=`rgba(240,250,255,${a.toFixed(3)})`;ctx.lineWidth=1.1*dpr*Math.min(1.1,.6+sc*.4);
-          ctx.beginPath();ctx.ellipse(q.x,q.y,q.rx+u*9*dpr*sc,(.8+u*2)*dpr*sc,0,0,Math.PI*2);ctx.stroke();
+          wctx.strokeStyle=`rgba(240,250,255,${a.toFixed(3)})`;wctx.lineWidth=1.1*dpr*Math.min(1.1,.6+sc*.4);
+          wctx.beginPath();wctx.ellipse(q.x,q.y,q.rx+u*9*dpr*sc,(.8+u*2)*dpr*sc,0,0,Math.PI*2);wctx.stroke();
         }
         // the splash: two droplets kick up and fall back in the first moments after it lands
         const su=(now-q.t)/260;
         if(su<1){
           const h=Math.sin(su*Math.PI)*7*dpr*sc, sa=(1-su)*.8*glowAlpha, sp=(2+su*5)*dpr*sc;
-          ctx.fillStyle=`rgba(245,250,255,${sa.toFixed(3)})`;ctx.beginPath();
-          ctx.ellipse(q.x-sp,q.y-h,.9*dpr*sc,1.4*dpr*sc,0,0,Math.PI*2);ctx.fill();
-          ctx.beginPath();ctx.ellipse(q.x+sp*.8,q.y-h*.75,.8*dpr*sc,1.2*dpr*sc,0,0,Math.PI*2);ctx.fill();
+          wctx.fillStyle=`rgba(245,250,255,${sa.toFixed(3)})`;wctx.beginPath();
+          wctx.ellipse(q.x-sp,q.y-h,.9*dpr*sc,1.4*dpr*sc,0,0,Math.PI*2);wctx.fill();
+          wctx.beginPath();wctx.ellipse(q.x+sp*.8,q.y-h*.75,.8*dpr*sc,1.2*dpr*sc,0,0,Math.PI*2);wctx.fill();
         }
       }
-      ctx.restore();
+      wctx.restore();
     }
     raf=requestAnimationFrame(tick);
   };
@@ -2289,14 +2389,19 @@ function wireSlider(){
     return [u*u*u*x1 + 3*u*u*t*c1x + 3*u*t*t*c2x + t*t*t*x2, u*u*u*y1 + 3*u*u*t*c1y + 3*u*t*t*c2y + t*t*t*y2];
   };
   const a = cx[0], b = W - cx[n - 1];                      // half the first and last column
-  const update = () => {
-    raf = 0;
+  // where the bead is for the row's current scroll: between point j and j+1, t of the way along
+  const beadAt = () => {
     const max = sc.scrollWidth - sc.clientWidth;
     const f = max > 0 ? Math.min(1, Math.max(0, sc.scrollLeft / max)) : 0;
     const x = Math.max(cx[0], Math.min(cx[n - 1], sc.scrollLeft + a + f * Math.max(0, sc.clientWidth - a - b)));
     // where x falls between two points on the line (columns can differ in width, so search rather than divide)
     let j = 0; while (j < n - 2 && cx[j + 1] <= x) j++;
-    const t = n > 1 ? Math.min(1, Math.max(0, (x - cx[j]) / (cx[j + 1] - cx[j]))) : 0, pos = j + t;
+    const t = n > 1 ? Math.min(1, Math.max(0, (x - cx[j]) / (cx[j + 1] - cx[j]))) : 0;
+    return {j, t, pos: j + t};
+  };
+  const update = () => {
+    raf = 0;
+    const {j, t, pos} = beadAt();
     if (!sliderOnGPU) {
       const [px, py] = n > 1 ? onCurve(j, t) : pts[0];
       knob.style.transform = `translate3d(${px.toFixed(1)}px,${py.toFixed(1)}px,0)`;
@@ -2340,9 +2445,8 @@ function wireSlider(){
       sliderOnGPU = true;
     } catch { sliderOnGPU = false; }
   }
-  // When the row comes to rest, the bead eases onto the nearest temperature point. The bead travels faster than the row
-  // scrolls, so each point has one scroll position that puts the bead on it (sunrise / sunset marks are skipped). The row
-  // keeps its full momentum: only once a fling has completely finished does it glide the last few pixels into place.
+  // When the row comes to rest, the bead slides onto the nearest temperature point by itself. The row is never moved:
+  // it stops exactly where your finger or fling left it, at its own pace. Scrolling again hands the bead back to the row.
   let stops = [];
   const placeSnaps = () => {
     const max = sc.scrollWidth - sc.clientWidth;
@@ -2350,18 +2454,33 @@ function wireSlider(){
   };
   placeSnaps(); snapRefresh = placeSnaps;
   let touching = false, settleT = 0;
+  let snapped = null;                                       // the label hidden under the snapped bead
   const settle = () => {
-    if (touching || !stops.length || !sc.isConnected) return;
-    const at = sc.scrollLeft, to = stops.reduce((a, b) => Math.abs(b - at) < Math.abs(a - at) ? b : a);
-    if (Math.abs(to - at) > .5) sc.scrollTo({left: to, behavior: 'smooth'});
+    if (touching || !sc.isConnected || n < 2) return;
+    const {j, t} = beadAt();
+    let i = Math.round(j + t);
+    if (items[i]?.sun) i = t < .5 ? Math.max(0, i - 1) : Math.min(n - 1, i + 1);   // never onto a sunrise / sunset mark
+    const [px, py] = onCurve(j, t), [tx, ty] = pts[i];
+    if (Math.hypot(tx - px, ty - py) < .5) return;
+    const ease = 'translate .42s cubic-bezier(.25,1.25,.5,1)';
+    knob.style.transition = ease; hz.style.transition = ease;
+    knob.style.translate = `${(tx - px).toFixed(1)}px ${(ty - py).toFixed(1)}px`; hz.style.translate = `0 ${(ty - py).toFixed(1)}px`;
+    if (snapped) snapped.classList.remove('under');
+    snapped = sc.querySelector(`.hcurve .lb[data-i="${i}"]`); if (snapped) snapped.classList.add('under');
   };
-  sc.addEventListener('touchstart', () => { touching = true; clearTimeout(settleT); }, {passive: true});
+  const unsnap = () => {
+    if (!knob.style.translate) return;
+    knob.style.transition = hz.style.transition = 'translate .16s ease-out';
+    knob.style.translate = hz.style.translate = '';
+    if (snapped) { snapped.classList.remove('under'); snapped = null; }
+  };
+  sc.addEventListener('touchstart', () => { touching = true; clearTimeout(settleT); unsnap(); }, {passive: true});
   // lifting the finger without a fling: no scroll follows, so settle after a moment (a fling's own scrolling cancels this)
   sc.addEventListener('touchend', () => { touching = false; clearTimeout(settleT); settleT = setTimeout(settle, 140); }, {passive: true});
   sc.addEventListener('touchcancel', () => { touching = false; }, {passive: true});
   if ('onscrollend' in sc) sc.addEventListener('scrollend', settle);                  // fires once the fling has fully stopped
   sc.addEventListener('scroll', () => {
-    clearTimeout(settleT);
+    clearTimeout(settleT); unsnap();
     if (!('onscrollend' in sc)) settleT = setTimeout(settle, 160);                    // older engines: a short pause means it stopped
     if (!raf) raf = requestAnimationFrame(update);
   }, {passive: true});
@@ -4471,7 +4590,23 @@ function cardBg(kind, day, n){
     : ({cloud: 'linear-gradient(160deg,#79a6dc,#4479c2)', fog: 'linear-gradient(160deg,#9aaabb,#6a7d92)', rain: 'linear-gradient(160deg,#7189a6,#41587a)',
         storm: 'linear-gradient(160deg,#5b6781,#2d3449)', snow: 'linear-gradient(160deg,#9db7d6,#6a8cb4)'})[kind] || 'linear-gradient(160deg,#5aa6f0,#2f78d4)';
   const shade = !day ? 'linear-gradient(rgba(12,22,48,.5),rgba(12,22,48,.5)),' : (kind === 'rain' || kind === 'storm') ? 'linear-gradient(rgba(40,55,80,.3),rgba(40,55,80,.3)),' : '';
-  return `${shade}url(clouds-${CLOUD_SET[kind] || 'light'}-${n % 8}.webp) center top/100% auto no-repeat,${g}`;
+  return `${shade}${g}`;                                   // the clouds, stars, rain... move in the card's own sky layer (cardSky)
+}
+// A city card's live sky, like the system weather list: clouds drifting across (three neighbouring tiles of the sky
+// strip, which join seamlessly, gliding slowly one way and back), stars twinkling at night, rain or snow falling, a
+// flicker of lightning in a storm, mist sliding through fog, a soft sun glow on a clear day. All transform and
+// opacity animations, so the phone's compositor runs them; they only play while the city list is open.
+function cardSky(kind, day, n){
+  const set = CLOUD_SET[kind] || 'light', t = k => `url(clouds-${set}-${(n + k) % 8}.webp)`;
+  const delay = -((n * 7.3) % 60).toFixed(1);                    // each card at its own point in the drift
+  let h = `<i class="cl" style="background-image:${t(0)},${t(1)},${t(2)};animation-delay:${delay}s"></i>`;
+  if (!day && kind !== 'rain' && kind !== 'storm' && kind !== 'fog') h = `<i class="st"></i><i class="st b"></i>` + h;
+  if (day && (kind === 'clear' || kind === 'partly')) h = `<i class="sg"></i>` + h;
+  if (kind === 'rain' || kind === 'storm') h += `<i class="rn"></i><i class="rn b"></i>`;
+  if (kind === 'snow') h += `<i class="sn"></i><i class="sn b"></i>`;
+  if (kind === 'fog') h += `<i class="mi"></i>`;
+  if (kind === 'storm') h += `<i class="fl" style="animation-delay:${-((n * 2.9) % 9).toFixed(1)}s"></i>`;
+  return `<div class="csky k-${kind}${day ? '' : ' night'}" aria-hidden="true">${h}</div>`;
 }
 function renderCards(){
   const g = $('cgrid'); g.innerHTML = '';
@@ -4486,7 +4621,7 @@ function renderCards(){
       temp = tf(j.current.temperature_2m);
     }
     card.style.background = cardBg(kind, day, i * 3 + 1);
-    card.innerHTML = `<div><div class="n">${esc(p.name)}${p.home ? PIN_SVG : ''}</div><div class="c">${esc(cond_)}&nbsp; ${range}</div></div>
+    card.innerHTML = cardSky(kind, day, i * 3 + 1) + `<div><div class="n">${esc(p.name)}${p.home ? PIN_SVG : ''}</div><div class="c">${esc(cond_)}&nbsp; ${range}</div></div>
       <div class="tp">${temp}<small>°${unit}</small></div>
       <button class="del" aria-label="Remove ${esc(p.name)}">−</button>`;
     card.onclick = e => {
